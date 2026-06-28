@@ -1,66 +1,89 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Leaf, ArrowRight, Loader, X } from 'lucide-react'
-
-const FPO_DATABASE = {
-  'GH-2025-KA': {
-    name: 'GreenHarvest FPO',
-    state: 'Karnataka',
-    established: 2021,
-    farmers: 825,
-    manager: 'Gopal Hegde',
-    crops: ['Wheat', 'Rice', 'Tomato'],
-    code: 'GH-2025-KA'
-  },
-  'PR-2025-MH': {
-    name: 'PuneRich FPO',
-    state: 'Maharashtra',
-    established: 2022,
-    farmers: 412,
-    manager: 'Anita Sharma',
-    crops: ['Onion', 'Tomato'],
-    code: 'PR-2025-MH'
-  }
-}
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { Wheat, ArrowRight, Loader, X } from 'lucide-react'
 
 type FPOStatus = 'NO_FPO' | 'SEARCHING' | 'FOUND' | 'REQUESTED' | 'APPROVED'
+
+interface FPODetails {
+  name: string
+  state: string
+  established?: number
+  farmers: number
+  manager: string
+  crops: string[]
+  code: string
+}
+
+interface FPOListItem {
+  id: string
+  organization_name: string
+  fpo_code: string
+  state: string
+  member_count: number
+  manager_name: string
+}
 
 export function FPOOnboarding() {
   const [status, setStatus] = useState<FPOStatus>('NO_FPO')
   const [fpoCode, setFpoCode] = useState('')
-  const [fpoDetails, setFpoDetails] = useState<any>(null)
+  const [fpoDetails, setFpoDetails] = useState<FPODetails | null>(null)
   const [loading, setLoading] = useState(false)
+  const [fpoList, setFpoList] = useState<FPOListItem[]>([])
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [selectedFpo, setSelectedFpo] = useState<FPOListItem | null>(null)
+
+  useEffect(() => {
+    fetch('/api/fpos')
+      .then(r => r.json())
+      .then(data => { if (data.success) setFpoList(data.fpos) })
+      .catch(() => {})
+  }, [])
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFpoCode(e.target.value.toUpperCase())
+    setSelectedFpo(null)
+  }
+
+  const handleSelectFpo = (fpo: FPOListItem) => {
+    setSelectedFpo(fpo)
+    setFpoCode(fpo.fpo_code)
+    setDropdownOpen(false)
   }
 
   const handleJoinFPO = async () => {
     if (!fpoCode.trim()) return
 
     setLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1200))
 
-    const fpo = FPO_DATABASE[fpoCode as keyof typeof FPO_DATABASE]
-    if (fpo) {
-      setFpoDetails(fpo)
-      setStatus('FOUND')
-    } else {
-      setFpoCode('')
-      setStatus('NO_FPO')
-      alert('FPO code not found. Please check and try again.')
+    const farmerId = localStorage.getItem('userId') || ''
+
+    try {
+      const res = await fetch('/api/farmers/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ farmerId, fpoCode }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setFpoDetails(data.fpoDetails)
+        setStatus('FOUND')
+      } else {
+        setFpoCode('')
+        alert(data.error || 'FPO code not found. Please check and try again.')
+      }
+    } catch {
+      alert('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
-  const handleRequestApproval = async () => {
+  const handleRequestApproval = () => {
+    // Join request was already created in handleJoinFPO — just update UI state
     setStatus('REQUESTED')
-    // Mock approval after 3 seconds
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    setStatus('APPROVED')
   }
 
   const handleReset = () => {
@@ -87,10 +110,13 @@ export function FPOOnboarding() {
               transition={{ delay: 0.1 }}
               className="flex items-center justify-center gap-3 mb-6"
             >
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                <Leaf className="w-6 h-6 text-emerald-400" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                <Wheat className="w-5 h-5 text-emerald-400" />
               </div>
-              <span className="text-2xl font-bold text-white">CropChain OS OS</span>
+              <span className="font-bold text-lg tracking-tight text-white">
+                Crop<span className="text-emerald-400">Chain</span>
+                <span className="text-emerald-500/70 text-sm ml-1 font-normal">OS</span>
+              </span>
             </motion.div>
 
             <motion.h1
@@ -128,14 +154,62 @@ export function FPOOnboarding() {
               Enter your FPO Code to join your local Farmer Producer Organisation
             </p>
 
-            {/* Input */}
+            {/* Dropdown */}
+            {fpoList.length > 0 && (
+              <div className="mb-3 relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(o => !o)}
+                  className="w-full px-4 py-3 bg-white/5 border border-emerald-500/20 rounded-lg text-left flex items-center justify-between transition-all hover:border-emerald-500/40 focus:outline-none focus:border-emerald-500/50"
+                >
+                  <span className={selectedFpo ? 'text-white font-medium' : 'text-gray-500 text-sm'}>
+                    {selectedFpo ? selectedFpo.organization_name : 'Select an FPO from the list'}
+                  </span>
+                  <motion.span
+                    animate={{ rotate: dropdownOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="text-emerald-400 text-xs"
+                  >
+                    ▼
+                  </motion.span>
+                </button>
+
+                {dropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className="absolute z-50 w-full mt-1 bg-[#111] border border-emerald-500/20 rounded-lg overflow-hidden shadow-xl"
+                  >
+                    {fpoList.map(fpo => (
+                      <button
+                        key={fpo.id}
+                        type="button"
+                        onClick={() => handleSelectFpo(fpo)}
+                        className="w-full px-4 py-3 text-left hover:bg-emerald-500/10 transition-colors border-b border-white/5 last:border-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-white text-sm font-semibold">{fpo.organization_name}</p>
+                            <p className="text-gray-500 text-xs mt-0.5">{fpo.state} · {fpo.member_count} farmers · {fpo.manager_name}</p>
+                          </div>
+                          <span className="text-emerald-400 font-mono text-xs ml-3 flex-shrink-0">{fpo.fpo_code}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+            )}
+
+            {/* Manual Input */}
             <div className="mb-6">
               <input
                 type="text"
                 value={fpoCode}
                 onChange={handleCodeChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleJoinFPO()}
-                placeholder="Enter FPO Code e.g. GH-2025-KA"
+                placeholder="e.g. GRE-2025-KA-342"
                 className="w-full px-4 py-3 bg-white/5 border border-emerald-500/20 rounded-lg text-white placeholder-gray-500 font-mono text-center focus:outline-none focus:border-emerald-500/50 transition-all"
               />
             </div>
@@ -161,7 +235,7 @@ export function FPOOnboarding() {
           </motion.div>
 
           <p className="text-center text-xs text-gray-500">
-            Don't have an FPO code? Contact your local Farmer Producer Organization
+            Don&apos;t have an FPO code? Contact your local Farmer Producer Organization
           </p>
         </div>
       </motion.div>
@@ -201,7 +275,7 @@ export function FPOOnboarding() {
                 <p className="text-2xl mb-2">🌾</p>
                 <h3 className="text-2xl font-bold text-emerald-400">{fpoDetails.name}</h3>
                 <p className="text-gray-400 text-sm">
-                  {fpoDetails.state} • Est. {fpoDetails.established}
+                  {fpoDetails.state}{fpoDetails.established ? ` • Est. ${fpoDetails.established}` : ''}
                 </p>
               </div>
             </div>
@@ -215,12 +289,14 @@ export function FPOOnboarding() {
                 <span className="text-gray-400 text-sm">Manager</span>
                 <span className="text-white font-semibold">{fpoDetails.manager}</span>
               </div>
-              <div className="flex justify-between items-start">
-                <span className="text-gray-400 text-sm">Crops</span>
-                <span className="text-white font-semibold text-right text-sm">
-                  {fpoDetails.crops.join(', ')}
-                </span>
-              </div>
+              {fpoDetails.crops.length > 0 && (
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-400 text-sm">Crops</span>
+                  <span className="text-white font-semibold text-right text-sm">
+                    {fpoDetails.crops.join(', ')}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -315,7 +391,7 @@ export function FPOOnboarding() {
             transition={{ delay: 0.3 }}
             className="text-3xl font-bold text-white mb-3"
           >
-            You're in!
+            You&apos;re in!
           </motion.h2>
           <motion.p
             initial={{ y: 20, opacity: 0 }}

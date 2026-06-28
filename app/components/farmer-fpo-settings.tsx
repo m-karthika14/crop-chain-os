@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Leaf, AlertCircle, LogOut } from 'lucide-react'
 
 interface FPOStatus {
+  fpoId: string
   fpoName: string
   fpoCode: string
   manager: string
@@ -22,38 +23,115 @@ export function FarmerFPOSettings() {
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showWarningModal, setShowWarningModal] = useState(false)
   const [isLeaving, setIsLeaving] = useState(false)
+  const [pendingItems, setPendingItems] = useState<PendingItem[]>([])
 
-  // Mock FPO data
-  const fpoStatus: FPOStatus = {
+  const [fpoStatus, setFpoStatus] = useState<FPOStatus>({
+    fpoId: '',
     fpoName: 'GreenHarvest FPO',
     fpoCode: 'GH-2025-KA',
     manager: 'Gopal Hegde',
     memberSince: 'Jan 2024',
-    status: 'ACTIVE'
-  }
+    status: 'ACTIVE',
+  })
 
-  // Mock pending items
-  const pendingItems: PendingItem[] = [
-    { type: 'crop', description: 'Rice 420Q — awaiting sale' },
-    { type: 'payment', description: 'Payment ₹16,500 — pending', amount: '₹16,500' }
-  ]
+  useEffect(() => {
+    const farmerId = localStorage.getItem('userId') || ''
+    if (!farmerId) return
 
-  const hasPendingItems = pendingItems.length > 0
+    fetch(`/api/farmers/status?farmerId=${farmerId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.membership) {
+          const m = data.membership
+          setFpoStatus({
+            fpoId: m.fpo_id,
+            fpoName: m.organization_name,
+            fpoCode: m.fpo_code,
+            manager: m.manager_name,
+            memberSince: m.approved_at
+              ? new Date(m.approved_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+              : 'Pending',
+            status: m.status,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [])
 
-  const handleLeaveClick = () => {
-    if (hasPendingItems) {
-      setShowWarningModal(true)
-    } else {
+  const handleLeaveClick = async () => {
+    const farmerId = localStorage.getItem('userId') || ''
+
+    try {
+      const res = await fetch('/api/farmers/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmerId,
+          fpoId: fpoStatus.fpoId,
+          reason: 'CHECK_ONLY',
+        }),
+      })
+      const data = await res.json()
+
+      if (!data.success && (data.pendingCrops || data.pendingPayments)) {
+        const items: PendingItem[] = []
+        if (data.pendingCrops) {
+          items.push({ type: 'crop', description: `${data.pendingCrops} crop(s) — awaiting sale` })
+        }
+        if (data.pendingPayments) {
+          items.push({ type: 'payment', description: `${data.pendingPayments} payment(s) — pending` })
+        }
+        setPendingItems(items)
+        setShowWarningModal(true)
+      } else {
+        setShowLeaveModal(true)
+      }
+    } catch {
       setShowLeaveModal(true)
     }
   }
 
   const handleConfirmLeave = async () => {
     setIsLeaving(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setIsLeaving(false)
-    setShowLeaveModal(false)
-    // TODO: Trigger re-render to show onboarding screen
+    const farmerId = localStorage.getItem('userId') || ''
+
+    try {
+      const res = await fetch('/api/farmers/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmerId,
+          fpoId: fpoStatus.fpoId,
+          reason: 'Farmer requested to leave',
+        }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setIsLeaving(false)
+        setShowLeaveModal(false)
+        window.location.href = '/farmer-dashboard'
+      } else {
+        setIsLeaving(false)
+        if (data.pendingCrops || data.pendingPayments) {
+          const items: PendingItem[] = []
+          if (data.pendingCrops) {
+            items.push({ type: 'crop', description: `${data.pendingCrops} crop(s) — awaiting sale` })
+          }
+          if (data.pendingPayments) {
+            items.push({ type: 'payment', description: `${data.pendingPayments} payment(s) — pending` })
+          }
+          setPendingItems(items)
+          setShowLeaveModal(false)
+          setShowWarningModal(true)
+        } else {
+          alert(data.error || 'Cannot leave FPO right now')
+        }
+      }
+    } catch {
+      setIsLeaving(false)
+      alert('Something went wrong. Please try again.')
+    }
   }
 
   return (

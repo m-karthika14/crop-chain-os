@@ -23,7 +23,57 @@ export default function FarmerDashboard() {
     state: 'Haryana',
     fpoName: 'GreenHarvest FPO',
   })
+  const [membershipInfo, setMembershipInfo] = useState<{
+    fpoName: string
+    memberSince: string
+    status: string
+    fpoId: string
+  } | null>(null)
   const { t } = useTranslation(language)
+
+  // Check FPO membership on mount
+  useEffect(() => {
+    const farmerId = localStorage.getItem('userId') || ''
+    if (!farmerId) return
+
+    fetch(`/api/farmers/status?farmerId=${farmerId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success || !data.membership) {
+          setHasFPO(false)
+          setShowFPOOnboarding(true)
+        } else if (data.membership.status === 'PENDING') {
+          setHasFPO(false)
+          setShowFPOOnboarding(true)
+        } else {
+          setHasFPO(true)
+          setShowFPOOnboarding(false)
+          const m = data.membership
+          setMembershipInfo({
+            fpoName: m.organization_name,
+            memberSince: m.approved_at
+              ? new Date(m.approved_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+              : 'Recently',
+            status: m.status,
+            fpoId: m.fpo_id,
+          })
+        }
+      })
+      .catch(() => {})
+
+    fetch(`/api/farmers/my-stats?farmerId=${farmerId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.total_earnings) {
+          const target = Number(data.total_earnings)
+          if (target > 0) {
+            setIsCountingUp(false)
+            setEarnings(target)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // Animate earnings counter on mount
   useEffect(() => {
@@ -232,8 +282,14 @@ export default function FarmerDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-2">FPO Membership</p>
-                      <h3 className="text-2xl font-bold text-white mb-1">GreenHarvest FPO</h3>
-                      <p className="text-sm text-gray-400">Member since 2023 • Active Status</p>
+                      <h3 className="text-2xl font-bold text-white mb-1">
+                        {membershipInfo?.fpoName ?? '—'}
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        {membershipInfo
+                          ? `Member since ${membershipInfo.memberSince} • ${membershipInfo.status === 'ACTIVE' ? 'Active' : membershipInfo.status} Status`
+                          : 'Loading...'}
+                      </p>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05 }}

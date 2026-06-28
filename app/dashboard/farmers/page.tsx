@@ -1,13 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, MapPin, Phone, User, TrendingUp, AlertCircle, CheckCircle2, X } from 'lucide-react'
+import { Search, Plus, MapPin, Phone, User, TrendingUp, AlertCircle, CheckCircle2, X, Clock } from 'lucide-react'
+
+interface Farmer {
+  id: string | number
+  name: string
+  village: string
+  phone: string
+  crops: string
+  status: string
+  harvests: number
+  earnings: string
+  trust: number
+}
+
+interface PendingFarmer {
+  id: string
+  full_name: string
+  phone_number: string
+  village: string
+  email: string
+  membership_id: string
+  joined_with_code: string
+  requested_at: string
+}
 
 export default function FarmersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [farmers, setFarmers] = useState([
+  const [farmers, setFarmers] = useState<Farmer[]>([
     {
       id: 1,
       name: 'Ramesh Kumar',
@@ -53,6 +76,7 @@ export default function FarmersPage() {
       trust: 76,
     },
   ])
+  const [pendingFarmers, setPendingFarmers] = useState<PendingFarmer[]>([])
 
   const [formData, setFormData] = useState({
     name: '',
@@ -61,20 +85,139 @@ export default function FarmersPage() {
     crops: '',
   })
 
+  useEffect(() => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+
+    fetch(`/api/farmers?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.farmers.length > 0) {
+          setFarmers(data.farmers.map((f: Record<string, unknown>) => ({
+            id: f.id,
+            name: f.full_name,
+            village: f.village || '',
+            phone: f.phone_number || '',
+            crops: '',
+            status: f.status || 'Active',
+            harvests: Number(f.total_sales) || 0,
+            earnings: f.total_earnings ? `₹${Number(f.total_earnings).toLocaleString('en-IN')}` : '₹0',
+            trust: Number(f.trust_score) || 50,
+          })))
+        }
+      })
+      .catch(() => {})
+
+    fetch(`/api/farmers/pending?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setPendingFarmers(data.pending || [])
+      })
+      .catch(() => {})
+  }, [])
+
   const handleAddFarmer = () => {
-    if (formData.name && formData.village && formData.phone && formData.crops) {
-      const newFarmer = {
-        id: Math.max(...farmers.map(f => f.id), 0) + 1,
-        ...formData,
-        status: 'Active',
-        harvests: 0,
-        earnings: '₹0',
-        trust: 85,
-      }
-      setFarmers([newFarmer, ...farmers])
-      setFormData({ name: '', village: '', phone: '', crops: '' })
-      setShowAddModal(false)
-    }
+    if (!formData.name || !formData.village || !formData.phone || !formData.crops) return
+
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    const managerId = localStorage.getItem('userId') || 'mgr-001'
+
+    fetch('/api/farmers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fpoId,
+        managerId,
+        full_name: formData.name,
+        village: formData.village,
+        phone_number: formData.phone,
+        crops: formData.crops,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const f = data.farmer
+          setFarmers(prev => [{
+            id: f.id,
+            name: f.full_name,
+            village: f.village || '',
+            phone: f.phone_number || '',
+            crops: formData.crops,
+            status: f.status || 'Active',
+            harvests: 0,
+            earnings: '₹0',
+            trust: f.trust_score || 85,
+          }, ...prev])
+          setFormData({ name: '', village: '', phone: '', crops: '' })
+          setShowAddModal(false)
+        } else {
+          alert(data.error || 'Failed to add farmer')
+        }
+      })
+      .catch(() => alert('Something went wrong. Please try again.'))
+  }
+
+  const handleApprove = (farmer: PendingFarmer) => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    const managerId = localStorage.getItem('userId') || 'mgr-001'
+
+    fetch('/api/farmers/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        membershipId: farmer.membership_id,
+        farmerId: farmer.id,
+        fpoId,
+        managerId,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setPendingFarmers(prev => prev.filter(f => f.id !== farmer.id))
+          fetch(`/api/farmers?fpoId=${fpoId}`)
+            .then(r => r.json())
+            .then(d => {
+              if (d.success && d.farmers.length > 0) {
+                setFarmers(d.farmers.map((f: Record<string, unknown>) => ({
+                  id: f.id,
+                  name: f.full_name,
+                  village: f.village || '',
+                  phone: f.phone_number || '',
+                  crops: '',
+                  status: f.status || 'Active',
+                  harvests: Number(f.total_sales) || 0,
+                  earnings: f.total_earnings ? `₹${Number(f.total_earnings).toLocaleString('en-IN')}` : '₹0',
+                  trust: Number(f.trust_score) || 50,
+                })))
+              }
+            })
+            .catch(() => {})
+        }
+      })
+      .catch(() => alert('Something went wrong'))
+  }
+
+  const handleReject = (farmer: PendingFarmer) => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+
+    fetch('/api/farmers/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        membershipId: farmer.membership_id,
+        fpoId,
+        action: 'reject',
+        reason: 'Rejected by manager',
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setPendingFarmers(prev => prev.filter(f => f.id !== farmer.id))
+        }
+      })
+      .catch(() => alert('Something went wrong'))
   }
 
   const filtered = farmers.filter(f =>
@@ -101,6 +244,47 @@ export default function FarmersPage() {
         </motion.button>
       </div>
 
+      {/* Pending Approvals */}
+      {pendingFarmers.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-xl border border-amber-500/20 overflow-hidden"
+        >
+          <div className="flex items-center gap-2 px-6 py-3 border-b border-amber-500/10 bg-amber-500/5">
+            <Clock className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-semibold text-amber-400">Pending Approvals</h3>
+            <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{pendingFarmers.length}</span>
+          </div>
+          <div className="divide-y divide-white/5">
+            {pendingFarmers.map(farmer => (
+              <div key={farmer.id} className="flex items-center justify-between px-6 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">{farmer.full_name}</p>
+                  <p className="text-xs text-gray-500">{farmer.village} · {farmer.phone_number}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleApprove(farmer)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReject(farmer)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
@@ -116,10 +300,10 @@ export default function FarmersPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Farmers', value: '825', icon: User, color: 'emerald' },
-          { label: 'Active', value: '812', icon: CheckCircle2, color: 'emerald' },
-          { label: 'Inactive', value: '13', icon: AlertCircle, color: 'amber' },
-          { label: 'Avg Trust', value: '89%', icon: TrendingUp, color: 'emerald' },
+          { label: 'Total Farmers', value: String(farmers.length), icon: User, color: 'emerald' },
+          { label: 'Active', value: String(farmers.filter(f => f.status === 'Active').length), icon: CheckCircle2, color: 'emerald' },
+          { label: 'Inactive', value: String(farmers.filter(f => f.status !== 'Active').length), icon: AlertCircle, color: 'amber' },
+          { label: 'Avg Trust', value: farmers.length ? `${Math.round(farmers.reduce((sum, f) => sum + f.trust, 0) / farmers.length)}%` : '—', icon: TrendingUp, color: 'emerald' },
         ].map((stat, i) => {
           const Icon = stat.icon
           const bgColor = stat.color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-amber-500/10 border-amber-500/20'
