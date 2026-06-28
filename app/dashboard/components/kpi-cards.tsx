@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Users, Wheat, IndianRupee, Star, MapPin, Clock } from 'lucide-react'
+import { VineDecoration } from '@/components/floral-card'
 
 function useCountUp(target: number, duration = 1800, start = false) {
   const [count, setCount] = useState(0)
@@ -65,6 +66,11 @@ function KpiCard({
       transition={{ duration: 0.5, delay }}
       className="relative glass rounded-xl p-5 border border-emerald-500/10 glass-hover overflow-hidden group"
     >
+      {/* Vine decoration */}
+      <div className="pointer-events-none">
+        <VineDecoration />
+      </div>
+
       {/* Subtle corner glow */}
       <div className="absolute top-0 right-0 w-24 h-24 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
         style={{ background: 'radial-gradient(circle at top right, rgba(16,185,129,0.08), transparent 70%)' }}

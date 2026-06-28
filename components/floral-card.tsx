@@ -88,20 +88,8 @@ interface FloralCardProps {
 export function FloralCard({ children, className = '', showBottomFlower = false }: FloralCardProps) {
   return (
     <div className={`relative rounded-2xl p-5 overflow-visible border border-emerald-500/10 ${className}`} style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
-      {/* Top-right marigold flower */}
-      <div className="absolute -top-3 -right-3 z-10 pointer-events-none">
-        <MariGoldFlower size={56} />
-      </div>
-
       {/* Top-right vine creeping inward */}
       <VineDecoration />
-
-      {/* Bottom-left small flower (optional) */}
-      {showBottomFlower && (
-        <div className="absolute -bottom-2 -left-2 z-10 pointer-events-none">
-          <MariGoldFlower size={40} />
-        </div>
-      )}
 
       {/* Content */}
       <div className="relative z-20">

@@ -7,7 +7,7 @@ import { TopMandis } from './components/top-mandis'
 import { LiveTicker } from './components/live-ticker'
 import { ActiveHarvest } from './components/active-harvest'
 import { CreditScoreCard } from './components/credit-score-card'
-import { QuickActions } from './components/quick-actions'
+import { AiInsightsCard } from './components/ai-insights-card'
 import { PendingApprovals } from '@/app/components/pending-approvals'
 
 export default function DashboardPage() {
@@ -51,9 +51,9 @@ export default function DashboardPage() {
 
         {/* RIGHT — Top Mandis + Credit Score + Quick Actions */}
         <div className="xl:col-span-2 space-y-5">
+          <AiInsightsCard />
           <TopMandis />
           <CreditScoreCard />
-          <QuickActions />
         </div>
       </div>
 
