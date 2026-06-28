@@ -1,0 +1,105 @@
+{
+  "header": {
+    "name": "Ramesh Kumar",
+    "location": "Village Sonepat, Haryana",
+    "logout": "Logout"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "myHarvest": "My Harvest",
+    "salesHistory": "Sales History",
+    "dispatches": "Dispatches",
+    "earnings": "Earnings"
+  },
+  "dashboard": {
+    "totalEarnings": "Total Earnings",
+    "harvestSubmitted": "Harvest Submitted",
+    "salesCompleted": "Sales Completed",
+    "bestPrice": "Best Price",
+    "myCrops": "My Crops",
+    "quickStats": "Quick Stats",
+    "recentSales": "Recent Sales",
+    "averagePrice": "Average Price",
+    "pendingSales": "Pending Sales",
+    "thisMonth": "This Month"
+  },
+  "table": {
+    "crop": "Crop",
+    "quantity": "Quantity",
+    "price": "Price",
+    "mandi": "Mandi",
+    "date": "Date",
+    "status": "Status",
+    "paid": "Paid"
+  },
+  "crops": {
+    "wheat": "Wheat",
+    "rice": "Rice",
+    "corn": "Corn",
+    "collected": "Collected",
+    "pending": "Pending",
+    "quality": "Quality",
+    "storage": "Storage",
+    "harvested": "Harvested"
+  },
+  "earnings": {
+    "totalEarnings6M": "Total Earnings (6M)",
+    "averagePerSale": "Average Per Sale",
+    "earningsThisMonth": "This Month",
+    "acrossSales": "Across 82 sales",
+    "fromSales": "From 8 sales",
+    "monthlyBreakdown": "Monthly Breakdown"
+  },
+  "stats": {
+    "acrossAllCrops": "Across 3 crops",
+    "allPaymentsReceived": "All payments received",
+    "wheatAtKarnal": "Wheat at Karnal"
+  },
+  "language": {
+    "english": "English",
+    "hindi": "हिंदी",
+    "telugu": "తెలుగు",
+    "tamil": "தமிழ்",
+    "malayalam": "മലയാളം"
+  },
+  "auth": {
+    "selectRole": "Select Your Role",
+    "farmer": "Farmer",
+    "fpo": "FPO (Farmer Producer Organization)",
+    "register": "Register",
+    "login": "Login",
+    "signup": "Sign Up",
+    "email": "Email Address",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "fullName": "Full Name",
+    "phoneNumber": "Phone Number",
+    "location": "Location",
+    "state": "State",
+    "district": "District",
+    "village": "Village",
+    "cropType": "Crop Type",
+    "farmSize": "Farm Size (Hectares)",
+    "bankAccount": "Bank Account Number",
+    "ifsc": "IFSC Code",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "registerAsNewMember": "Register as a new member",
+    "loginToAccount": "Login to your account",
+    "organizationName": "Organization Name",
+    "registrationNumber": "Registration Number",
+    "contactPerson": "Contact Person Name",
+    "contactPhone": "Contact Phone Number",
+    "memberCount": "Number of Members",
+    "bankName": "Bank Name",
+    "invalidEmail": "Please enter a valid email",
+    "passwordMismatch": "Passwords do not match",
+    "fillAllFields": "Please fill all required fields",
+    "registerSuccess": "Registration successful! Please login.",
+    "loginSuccess": "Login successful!",
+    "registrationError": "Registration failed. Please try again.",
+    "loginError": "Login failed. Please check your credentials.",
+    "or": "or",
+    "backToHome": "Back to Home"
+  }
+}

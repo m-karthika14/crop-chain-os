@@ -1,0 +1,105 @@
+{
+  "header": {
+    "name": "రమేష్ కుమార్",
+    "location": "గ్రామం సోనెపట్, హరియాణ",
+    "logout": "లాగ్‌అవుట్"
+  },
+  "sidebar": {
+    "dashboard": "డ్యాష్‌బోర్డ్",
+    "myHarvest": "నా పంట",
+    "salesHistory": "విక్రయ చరిత్ర",
+    "dispatches": "రవాణా",
+    "earnings": "ఆదాయం"
+  },
+  "dashboard": {
+    "totalEarnings": "మొత్తం ఆదాయం",
+    "harvestSubmitted": "సమర్పించిన పంట",
+    "salesCompleted": "పూర్తి చేయిన విక్రయాలు",
+    "bestPrice": "ఉత్తమ ధర",
+    "myCrops": "నా పంటలు",
+    "quickStats": "శీఘ్ర గణాంకాలు",
+    "recentSales": "ఇటీవలి విక్రయాలు",
+    "averagePrice": "సగటు ధర",
+    "pendingSales": "పెండింగ్ విక్రయాలు",
+    "thisMonth": "ఈ నెల"
+  },
+  "table": {
+    "crop": "పంట",
+    "quantity": "పరిమాణం",
+    "price": "ధర",
+    "mandi": "మండి",
+    "date": "తేదీ",
+    "status": "స్థితి",
+    "paid": "చెల్లించారు"
+  },
+  "crops": {
+    "wheat": "గోధుమ",
+    "rice": "బియ్యం",
+    "corn": "మొక్క",
+    "collected": "సংগ్రహించారు",
+    "pending": "పెండింగ్",
+    "quality": "గుణవత్త",
+    "storage": "నిల్వ",
+    "harvested": "పండించారు"
+  },
+  "earnings": {
+    "totalEarnings6M": "మొత్తం ఆదాయం (6M)",
+    "averagePerSale": "విక్రయానికి సగటు",
+    "earningsThisMonth": "ఈ నెల",
+    "acrossSales": "82 విక్రయాలలో",
+    "fromSales": "8 విక్రయాల నుండి",
+    "monthlyBreakdown": "నెలవారీ విచ్ఛేదన"
+  },
+  "stats": {
+    "acrossAllCrops": "3 పంటలలో",
+    "allPaymentsReceived": "అన్ని చెల్లింపులు స్వీకరించారు",
+    "wheatAtKarnal": "కర్నాల్‌లో గోధుమ"
+  },
+  "language": {
+    "english": "English",
+    "hindi": "हिंदी",
+    "telugu": "తెలుగు",
+    "tamil": "தமிழ்",
+    "malayalam": "മലയാളം"
+  },
+  "auth": {
+    "selectRole": "మీ పాత్రను ఎంచుకోండి",
+    "farmer": "రైతు",
+    "fpo": "FPO (రైతు ఉత్పత్తి సంస్థ)",
+    "register": "నిబంధన",
+    "login": "లాగిన్",
+    "signup": "సైన్ అప్ చేయండి",
+    "email": "ఈమెయిల్ చిరునామా",
+    "password": "పాస్‌వర్డ్",
+    "confirmPassword": "పాస్‌వర్డ్ నిర్ధారించండి",
+    "fullName": "పూర్తి పేరు",
+    "phoneNumber": "ఫోన్ నంబర్",
+    "location": "స్థానం",
+    "state": "రాష్ట్రం",
+    "district": "జిల్లా",
+    "village": "గ్రామం",
+    "cropType": "పంట రకం",
+    "farmSize": "పొలం పరిమాణం (హెక్టార్‌లు)",
+    "bankAccount": "బ్యాంక్ ఖాతా సంఖ్య",
+    "ifsc": "IFSC కోడ్",
+    "alreadyHaveAccount": "ఇప్పటికే ఖాతా ఉందా?",
+    "dontHaveAccount": "ఖాతా లేదా?",
+    "registerAsNewMember": "కొత్త సభ్యుడిగా నిబంధన చేయండి",
+    "loginToAccount": "మీ ఖాతాకు లాగిన్ చేయండి",
+    "organizationName": "సంస్థ పేరు",
+    "registrationNumber": "నిబంధన సంఖ్య",
+    "contactPerson": "సంపర్క వ్యక్తి పేరు",
+    "contactPhone": "సంపర్క ఫోన్ నంబర్",
+    "memberCount": "సభ్యుల సంఖ్య",
+    "bankName": "బ్యాంకు పేరు",
+    "invalidEmail": "దయచేసి చెల్లుబాటు అయ్యే ఈమెయిల్ నమోదు చేయండి",
+    "passwordMismatch": "పాస్‌వర్డ్‌లు సరిపోలేవు",
+    "fillAllFields": "దయచేసి అన్ని అవసరమైన ఫీల్డ్‌లను నింపండి",
+    "registerSuccess": "నిబంధన విజయవంతమైనది! దయచేసి లాగిన్ చేయండి.",
+    "loginSuccess": "లాగిన్ విజయవంతమైనది!",
+    "registrationError": "నిబంధన విఫలమైనది. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    "loginError": "లాగిన్ విఫలమైనది. దయచేసి మీ రకరకాలను తనిఖీ చేయండి.",
+    "or": "లేదా",
+    "backToHome": "హోమ్‌కు తిరిగి వెళ్లండి"
+  }
+}

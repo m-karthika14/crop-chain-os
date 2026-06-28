@@ -1,0 +1,105 @@
+{
+  "header": {
+    "name": "राजेश कुमार",
+    "location": "गाँव सोनेपत, हरियाणा",
+    "logout": "लॉगआउट"
+  },
+  "sidebar": {
+    "dashboard": "डैशबोर्ड",
+    "myHarvest": "मेरी फसल",
+    "salesHistory": "बिक्री का इतिहास",
+    "dispatches": "भेजना",
+    "earnings": "आय"
+  },
+  "dashboard": {
+    "totalEarnings": "कुल आय",
+    "harvestSubmitted": "जमा की गई फसल",
+    "salesCompleted": "पूर्ण की गई बिक्री",
+    "bestPrice": "सर्वोत्तम मूल्य",
+    "myCrops": "मेरी फसलें",
+    "quickStats": "त्वरित आँकड़े",
+    "recentSales": "हाल की बिक्री",
+    "averagePrice": "औसत मूल्य",
+    "pendingSales": "लंबित बिक्री",
+    "thisMonth": "इस महीने"
+  },
+  "table": {
+    "crop": "फसल",
+    "quantity": "मात्रा",
+    "price": "कीमत",
+    "mandi": "मंडी",
+    "date": "तारीख",
+    "status": "स्थिति",
+    "paid": "भुगतान किया गया"
+  },
+  "crops": {
+    "wheat": "गेहूँ",
+    "rice": "चावल",
+    "corn": "मकई",
+    "collected": "एकत्रित",
+    "pending": "लंबित",
+    "quality": "गुणवत्ता",
+    "storage": "भंडारण",
+    "harvested": "काटी गई"
+  },
+  "earnings": {
+    "totalEarnings6M": "कुल आय (6 माह)",
+    "averagePerSale": "प्रति बिक्री औसत",
+    "earningsThisMonth": "इस महीने",
+    "acrossSales": "82 बिक्री में",
+    "fromSales": "8 बिक्री से",
+    "monthlyBreakdown": "मासिक विवरण"
+  },
+  "stats": {
+    "acrossAllCrops": "3 फसलों में",
+    "allPaymentsReceived": "सभी भुगतान प्राप्त",
+    "wheatAtKarnal": "करनाल में गेहूँ"
+  },
+  "language": {
+    "english": "English",
+    "hindi": "हिंदी",
+    "telugu": "తెలుగు",
+    "tamil": "தமிழ்",
+    "malayalam": "മലയാളം"
+  },
+  "auth": {
+    "selectRole": "अपनी भूमिका चुनें",
+    "farmer": "किसान",
+    "fpo": "FPO (किसान उत्पादक संगठन)",
+    "register": "पंजीकरण",
+    "login": "लॉगिन",
+    "signup": "साइन अप करें",
+    "email": "ईमेल पता",
+    "password": "पासवर्ड",
+    "confirmPassword": "पासवर्ड की पुष्टि करें",
+    "fullName": "पूरा नाम",
+    "phoneNumber": "फोन नंबर",
+    "location": "स्थान",
+    "state": "राज्य",
+    "district": "जिला",
+    "village": "गाँव",
+    "cropType": "फसल का प्रकार",
+    "farmSize": "खेत का आकार (हेक्टेयर)",
+    "bankAccount": "बैंक खाता संख्या",
+    "ifsc": "IFSC कोड",
+    "alreadyHaveAccount": "पहले से खाता है?",
+    "dontHaveAccount": "खाता नहीं है?",
+    "registerAsNewMember": "नए सदस्य के रूप में पंजीकरण करें",
+    "loginToAccount": "अपने खाते में लॉगिन करें",
+    "organizationName": "संगठन का नाम",
+    "registrationNumber": "पंजीकरण संख्या",
+    "contactPerson": "संपर्क व्यक्ति का नाम",
+    "contactPhone": "संपर्क फोन नंबर",
+    "memberCount": "सदस्यों की संख्या",
+    "bankName": "बैंक का नाम",
+    "invalidEmail": "कृपया एक वैध ईमेल दर्ज करें",
+    "passwordMismatch": "पासवर्ड मेल नहीं खाते",
+    "fillAllFields": "कृपया सभी आवश्यक फ़ील्ड भरें",
+    "registerSuccess": "पंजीकरण सफल! कृपया लॉगिन करें।",
+    "loginSuccess": "लॉगिन सफल!",
+    "registrationError": "पंजीकरण विफल। कृपया पुनः प्रयास करें।",
+    "loginError": "लॉगिन विफल। कृपया अपने क्रेडेंशियल की जांच करें।",
+    "or": "या",
+    "backToHome": "होम पर वापस जाएं"
+  }
+}

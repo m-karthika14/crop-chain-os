@@ -1,0 +1,105 @@
+{
+  "header": {
+    "name": "രമേഷ് കുമാർ",
+    "location": "ഗ്രാമം സോനെപ്പാട്, ഹരിയാണ",
+    "logout": "പുറത്തേക്ക് പോകുക"
+  },
+  "sidebar": {
+    "dashboard": "ഡാഷ്ബോർഡ്",
+    "myHarvest": "എന്റെ വിളവ്",
+    "salesHistory": "വിൽപ്പന ചരിത്രം",
+    "dispatches": "അയച്ചുവിടൽ",
+    "earnings": "വരുമാനം"
+  },
+  "dashboard": {
+    "totalEarnings": "മൊത്തം വരുമാനം",
+    "harvestSubmitted": "സമർപ്പിച്ച വിളവ്",
+    "salesCompleted": "പൂർത്തിയാക്കിയ വിൽപ്പനം",
+    "bestPrice": "മികച്ച വില",
+    "myCrops": "എന്റെ വിളകൾ",
+    "quickStats": "വേഗ്യ സ്ഥിതിവിവരാവലി",
+    "recentSales": "അടുത്തിയ വിൽപ്പനം",
+    "averagePrice": "ശരാശരി വില",
+    "pendingSales": "നിരക്കിലായ വിൽപ്പനം",
+    "thisMonth": "ഈ മാസം"
+  },
+  "table": {
+    "crop": "വിളവ്",
+    "quantity": "അളവ്",
+    "price": "വില",
+    "mandi": "മണ്ഡി",
+    "date": "തീയതി",
+    "status": "സ്ഥിതി",
+    "paid": "കൊടുത്തു"
+  },
+  "crops": {
+    "wheat": "ഗോതമ്പ്",
+    "rice": "നെല്ല്",
+    "corn": "ചോളം",
+    "collected": "ശേഖരിച്ച",
+    "pending": "നിരക്കിലായ",
+    "quality": "ഗുണം",
+    "storage": "സംരക്ഷണം",
+    "harvested": "കൊയ്തെടുത്ത"
+  },
+  "earnings": {
+    "totalEarnings6M": "മൊത്തം വരുമാനം (6M)",
+    "averagePerSale": "വിൽപ്പനയ്ക്ക് ശരാശരി",
+    "earningsThisMonth": "ഈ മാസം",
+    "acrossSales": "82 വിൽപ്പനയിൽ",
+    "fromSales": "8 വിൽപ്പനയിൽ നിന്ന്",
+    "monthlyBreakdown": "പ്രതിമാസ വിഭജനം"
+  },
+  "stats": {
+    "acrossAllCrops": "3 വിളകളിൽ",
+    "allPaymentsReceived": "എല്ലാ പേയ്‌മെന്റുകൾ ലഭിച്ചു",
+    "wheatAtKarnal": "കർണാലിൽ ഗോതമ്പ്"
+  },
+  "language": {
+    "english": "English",
+    "hindi": "हिंदी",
+    "telugu": "తెలుగు",
+    "tamil": "தமிழ்",
+    "malayalam": "മലയാളം"
+  },
+  "auth": {
+    "selectRole": "നിങ്ങളുടെ പങ്ക് തിരഞ്ഞെടുക്കുക",
+    "farmer": "കർഷകൻ",
+    "fpo": "FPO (കർഷക നിർമ്മാതൃ സംഘടന)",
+    "register": "രജിസ്ട്രേഷൻ",
+    "login": "ലോഗിൻ",
+    "signup": "സൈൻ അപ്പ് ചെയ്യുക",
+    "email": "ഇമെയിൽ വിലാസം",
+    "password": "പാസ്വേഡ്",
+    "confirmPassword": "പാസ്വേഡ് സ്ഥിരീകരിക്കുക",
+    "fullName": "പൂർണ്ണ നാമം",
+    "phoneNumber": "ഫോൺ നമ്പർ",
+    "location": "സ്ഥാനം",
+    "state": "സംസ്ഥാനം",
+    "district": "ജില്ല",
+    "village": "ഗ്രാമം",
+    "cropType": "വിളയ്‌ക്കത്തരം",
+    "farmSize": "കൃഷിയിടത്തിന്റെ വലിപ്പം (ഹെക്ടെയർ)",
+    "bankAccount": "ബാങ്ക് അക്കൗണ്ട് നമ്പർ",
+    "ifsc": "IFSC കോഡ്",
+    "alreadyHaveAccount": "ഇതിനകം അക്കൗണ്ട് ഉണ്ടോ?",
+    "dontHaveAccount": "അക്കൗണ്ട് ഇല്ലേ?",
+    "registerAsNewMember": "പുതിയ അംഗമായി രജിസ്ട്രേഷൻ ചെയ്യുക",
+    "loginToAccount": "നിങ്ങളുടെ അക്കൗണ്ടിലേക്ക് ലോഗിൻ ചെയ്യുക",
+    "organizationName": "സംഘടനയുടെ പേര്",
+    "registrationNumber": "രജിസ്ട്രേഷൻ നമ്പർ",
+    "contactPerson": "ബന്ധപ്പെടാനുള്ള വ്യക്തിയുടെ പേര്",
+    "contactPhone": "ബന്ധപ്പെടാനുള്ള ഫോൺ നമ്പർ",
+    "memberCount": "അംഗങ്ങളുടെ എണ്ണം",
+    "bankName": "ബാങ്കിന്റെ പേര്",
+    "invalidEmail": "ദയവായി സാധുവായ ഇമെയിൽ നൽകുക",
+    "passwordMismatch": "പാസ്വേഡ് പൊരുത്തപ്പെടുന്നില്ല",
+    "fillAllFields": "ദയവായി എല്ലാ ആവശ്യമായ ഫീൽഡുകൾ പൂരിപ്പിക്കുക",
+    "registerSuccess": "രജിസ്ട്രേഷൻ വിജയകരമായി പൂർത്തിയായി! ദയവായി ലോഗിൻ ചെയ്യുക.",
+    "loginSuccess": "ലോഗിൻ വിജയകരമായി പൂർത്തിയായി!",
+    "registrationError": "രജിസ്ട്രേഷൻ പരാജയപ്പെട്ടു. ദയവായി വീണ്ടും ശ്രമിക്കുക.",
+    "loginError": "ലോഗിൻ പരാജയപ്പെട്ടു. ദയവായി നിങ്ങളുടെ കുറിപ്പുകൾ പരിശോധിക്കുക.",
+    "or": "അല്ലെങ്കിൽ",
+    "backToHome": "പൂമ്പിലേക്ക് മടങ്ങുക"
+  }
+}

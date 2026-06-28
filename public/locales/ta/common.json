@@ -1,0 +1,105 @@
+{
+  "header": {
+    "name": "ரமேஷ் குமார்",
+    "location": "கிராமம் சோனேபட், ஹரியாணா",
+    "logout": "வெளியேறு"
+  },
+  "sidebar": {
+    "dashboard": "டாஷ்போர்ড்",
+    "myHarvest": "எனது ஆறு",
+    "salesHistory": "விற்பனை வரலாறு",
+    "dispatches": "அனுப்பல்",
+    "earnings": "வருமானம்"
+  },
+  "dashboard": {
+    "totalEarnings": "மொத்த வருமானம்",
+    "harvestSubmitted": "சமர்ப்பிக்கப்பட்ட ஆறு",
+    "salesCompleted": "முடிந்த விற்பனை",
+    "bestPrice": "சிறந்த விலை",
+    "myCrops": "எனது பயிர்கள்",
+    "quickStats": "விரைவு புள்ளிவிவரங்கள்",
+    "recentSales": "சமீபத்திய விற்பனை",
+    "averagePrice": "சராசரி விலை",
+    "pendingSales": "நிலுவையில் உள்ள விற்பனை",
+    "thisMonth": "இந்த மாதம்"
+  },
+  "table": {
+    "crop": "பயிர்",
+    "quantity": "அளவு",
+    "price": "விலை",
+    "mandi": "மண்டி",
+    "date": "தேதி",
+    "status": "நிலை",
+    "paid": "செலுத்தப்பட்டது"
+  },
+  "crops": {
+    "wheat": "கோதுமை",
+    "rice": "அரிசி",
+    "corn": "சோளம்",
+    "collected": "சேகரிக்கப்பட்டது",
+    "pending": "நிலுவையில் உள்ளது",
+    "quality": "தரம்",
+    "storage": "சேமிப்பு",
+    "harvested": "அறுவடை செய்யப்பட்டது"
+  },
+  "earnings": {
+    "totalEarnings6M": "மொத்த வருமானம் (6M)",
+    "averagePerSale": "விற்பனைக்கு சராசரி",
+    "earningsThisMonth": "இந்த மாதம்",
+    "acrossSales": "82 விற்பனையில்",
+    "fromSales": "8 விற்பனையிலிருந்து",
+    "monthlyBreakdown": "மাதாந்த பிரிவு"
+  },
+  "stats": {
+    "acrossAllCrops": "3 பயிர்களில்",
+    "allPaymentsReceived": "அனைத்து பணம் பெறப்பட்டது",
+    "wheatAtKarnal": "கர்னாலில் கோதுமை"
+  },
+  "language": {
+    "english": "English",
+    "hindi": "हिंदी",
+    "telugu": "తెలుగు",
+    "tamil": "தமிழ்",
+    "malayalam": "മലയാളം"
+  },
+  "auth": {
+    "selectRole": "உங்கள் பாத்திரத்தைத் தேர்ந்தெடுக்கவும்",
+    "farmer": "விவசாயி",
+    "fpo": "FPO (விவசாயி உற்பादक நிறுவனம்)",
+    "register": "பதிவு",
+    "login": "உள்நுழைக",
+    "signup": "பதிவு செய்க",
+    "email": "மின்னஞ்சல் முகவரி",
+    "password": "கடவுச்சொல்",
+    "confirmPassword": "கடவுச்சொல்லை உறுதிசெய்க",
+    "fullName": "முழு பெயர்",
+    "phoneNumber": "ফোன் எண்",
+    "location": "இடம்",
+    "state": "மாநிலம்",
+    "district": "மாவட்டம்",
+    "village": "கிராமம்",
+    "cropType": "பயிர் வகை",
+    "farmSize": "பண்ணையின் அளவு (ஹெக்டேர்)",
+    "bankAccount": "வங்கி கணக்கு எண்",
+    "ifsc": "IFSC குறியீடு",
+    "alreadyHaveAccount": "ஏற்கனவே கணக்கு உள்ளதா?",
+    "dontHaveAccount": "கணக்கு இல்லையா?",
+    "registerAsNewMember": "புதிய உறுப்பினராக பதிவு செய்க",
+    "loginToAccount": "உங்கள் கணக்கில் உள்நுழைக",
+    "organizationName": "நிறுவனத்தின் பெயர்",
+    "registrationNumber": "பதிவு எண்",
+    "contactPerson": "தொடர்பு நபரின் பெயர்",
+    "contactPhone": "தொடர்பு ফோன் எண்",
+    "memberCount": "உறுப்பினர்களின் எண்ணிக்கை",
+    "bankName": "வங்கியின் பெயர்",
+    "invalidEmail": "தயவுசெய்து சரியான மின்னஞ்சல் உள்ளிடவும்",
+    "passwordMismatch": "கடவுச்சொல்கள் பொருந்தவில்லை",
+    "fillAllFields": "தயவுசெய்து அனைத்து தேவையான புலங்களை நிரப்பவும்",
+    "registerSuccess": "பதிவு வெற்றிகரமாக முடிந்தது! தயவுசெய்து உள்நுழைக.",
+    "loginSuccess": "உள்நுழைக வெற்றிகரமாக முடிந்தது!",
+    "registrationError": "பதிவு தோல்வியடைந்தது. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.",
+    "loginError": "உள்நுழைக தோல்வியடைந்தது. தயவுசெய்து உங்கள் நற்சான்றுகளை சரிபார்க்கவும்.",
+    "or": "அல்லது",
+    "backToHome": "வீட்டிற்கு திரும்பவும்"
+  }
+}
