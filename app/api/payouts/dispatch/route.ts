@@ -53,12 +53,13 @@ export async function GET(req: NextRequest) {
     // Use LOWER() for case-insensitive crop matching
     const harvestResult = await db.query(
       `SELECT h.farmer_id,
-              COALESCE(h.quantity_final, h.quantity_actual, h.quantity_estimated, 0) AS qty,
+              SUM(COALESCE(h.quantity_final, h.quantity_actual, h.quantity_estimated, 0)::numeric) AS qty,
               f.full_name as farmer_name
        FROM harvests h
        JOIN farmers f ON f.id = h.farmer_id
        WHERE h.fpo_id = $1
          AND LOWER(h.crop_type) = LOWER($2)
+       GROUP BY h.farmer_id, f.full_name
        ORDER BY qty DESC`,
       [dispatch.fpo_id, dispatch.crop]
     )

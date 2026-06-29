@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   LogOut, Menu, X, Bell, User, Wheat, Truck, Wallet,
   Leaf, BarChart3, LayoutDashboard, Globe, Banknote,
-  AlertCircle, CheckCircle2, MapPin,
+  AlertCircle, CheckCircle2, MapPin, DoorOpen, Loader2,
 } from 'lucide-react'
 import { useTranslation, type Language } from '@/hooks/useTranslation'
 
@@ -18,6 +18,7 @@ interface Notification {
 }
 
 interface MembershipInfo {
+  fpoId:        string
   fpoName:      string
   memberSince:  string
   status:       string
@@ -30,6 +31,7 @@ interface FarmerHeaderProps {
   onSidebarToggle?: () => void
   sidebarOpen?: boolean
   activeNav?: string
+  onLeaveFPO?: () => void
 }
 
 function notifIcon(type: string) {
@@ -50,12 +52,17 @@ function notifDot(type: string) {
   return 'bg-gray-500'
 }
 
-export function FarmerHeader({ subtitle, onSidebarToggle, sidebarOpen, activeNav }: FarmerHeaderProps) {
+export function FarmerHeader({ subtitle, onSidebarToggle, sidebarOpen, activeNav, onLeaveFPO }: FarmerHeaderProps) {
   const [language,      setLanguage]      = useState<Language>('en')
   const [showLangMenu,  setShowLangMenu]  = useState(false)
   const [farmerName,    setFarmerName]    = useState('')
   const [farmerState,   setFarmerState]   = useState('')
   const [membership,    setMembership]    = useState<MembershipInfo | null>(null)
+
+  // Leave FPO
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [leavingFPO,       setLeavingFPO]       = useState(false)
+  const [leaveError,       setLeaveError]       = useState('')
 
   // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -90,6 +97,7 @@ export function FarmerHeader({ subtitle, onSidebarToggle, sidebarOpen, activeNav
       if (data.success && data.membership?.status === 'ACTIVE') {
         const m = data.membership
         setMembership({
+          fpoId:        m.fpo_id,
           fpoName:      m.organization_name,
           memberSince:  m.approved_at
             ? new Date(m.approved_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -122,6 +130,32 @@ export function FarmerHeader({ subtitle, onSidebarToggle, sidebarOpen, activeNav
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  const handleLeaveFPO = async () => {
+    const farmerId = localStorage.getItem('userId') || ''
+    if (!farmerId || !membership?.fpoId) return
+    setLeavingFPO(true)
+    setLeaveError('')
+    try {
+      const res  = await fetch('/api/farmers/leave', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ farmerId, fpoId: membership.fpoId, reason: 'Farmer requested to leave' }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setMembership(null)
+        setShowLeaveConfirm(false)
+        setShowProfile(false)
+        onLeaveFPO?.()
+      } else {
+        setLeaveError(data.error || 'Could not leave FPO. Please try again.')
+      }
+    } catch {
+      setLeaveError('Network error. Please try again.')
+    }
+    setLeavingFPO(false)
+  }
 
   const initials = farmerName
     ? farmerName.trim().split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase()
@@ -261,7 +295,7 @@ export function FarmerHeader({ subtitle, onSidebarToggle, sidebarOpen, activeNav
                     <div className="px-4 py-3 border-b border-white/[0.06] space-y-2.5">
                       <div className="flex items-start gap-2">
                         <Wheat className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5">FPO</p>
                           <p className="text-xs text-white font-medium truncate">{membership.fpoName}</p>
                           <p className="text-[10px] text-gray-600">Member since {membership.memberSince}</p>
@@ -282,6 +316,42 @@ export function FarmerHeader({ subtitle, onSidebarToggle, sidebarOpen, activeNav
                           <div>
                             <p className="text-[10px] text-gray-600 mb-0.5">Godown</p>
                             <p className="text-xs text-gray-400 leading-snug">{membership.godownAddress}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Leave FPO */}
+                      {!showLeaveConfirm ? (
+                        <button
+                          onClick={() => { setShowLeaveConfirm(true); setLeaveError('') }}
+                          className="w-full flex items-center gap-2 mt-1 px-2.5 py-1.5 rounded-lg text-[11px] text-orange-400 hover:text-orange-300 hover:bg-orange-500/[0.08] border border-orange-500/20 hover:border-orange-500/40 transition-colors"
+                        >
+                          <DoorOpen className="w-3.5 h-3.5 shrink-0" />
+                          Leave FPO
+                        </button>
+                      ) : (
+                        <div className="rounded-lg border border-orange-500/30 bg-orange-500/[0.06] p-3 space-y-2">
+                          <p className="text-[11px] text-orange-300 font-semibold">Leave {membership.fpoName}?</p>
+                          <p className="text-[10px] text-gray-500 leading-snug">You can rejoin another FPO after leaving. Any pending crops or payments must be settled first.</p>
+                          {leaveError && (
+                            <p className="text-[10px] text-red-400 leading-snug">{leaveError}</p>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setShowLeaveConfirm(false); setLeaveError('') }}
+                              className="flex-1 py-1 rounded text-[11px] text-gray-400 hover:text-white border border-white/10 hover:bg-white/[0.05] transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleLeaveFPO}
+                              disabled={leavingFPO}
+                              className="flex-1 py-1 rounded text-[11px] font-bold text-orange-300 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                            >
+                              {leavingFPO
+                                ? <><Loader2 className="w-3 h-3 animate-spin" /> Leaving…</>
+                                : 'Yes, Leave'}
+                            </button>
                           </div>
                         </div>
                       )}

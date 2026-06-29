@@ -6,6 +6,7 @@ import Link from 'next/link'
 import {
   Wheat, TrendingUp, DollarSign, CheckCircle2, LayoutDashboard,
   Leaf, BarChart3, Truck, Wallet, Plus, ChevronRight, Clock, Package,
+  DoorOpen, Loader2, AlertTriangle,
 } from 'lucide-react'
 import { useTranslation } from '@/hooks/useTranslation'
 import { FPOOnboarding } from '@/app/components/fpo-onboarding'
@@ -72,10 +73,14 @@ export default function FarmerDashboard() {
   const [sidebarOpen,       setSidebarOpen]       = useState(true)
   const [hasFPO,            setHasFPO]             = useState(true)
   const [showFPOOnboarding, setShowFPOOnboarding]  = useState(false)
-  const [membershipInfo,    setMembershipInfo]     = useState<{ fpoName: string; memberSince: string; status: string } | null>(null)
+  const [membershipInfo,    setMembershipInfo]     = useState<{ fpoId: string; fpoName: string; memberSince: string; status: string } | null>(null)
   const [harvests,          setHarvests]           = useState<HarvestRow[]>([])
   const [dispatches,        setDispatches]         = useState<DispatchRow[]>([])
   const [loading,           setLoading]            = useState(true)
+  // Leave FPO state
+  const [showLeaveConfirm,  setShowLeaveConfirm]  = useState(false)
+  const [leavingFPO,        setLeavingFPO]        = useState(false)
+  const [leaveError,        setLeaveError]        = useState('')
 
   const { t } = useTranslation('en')
 
@@ -95,6 +100,7 @@ export default function FarmerDashboard() {
         setHasFPO(true)
         const m = data.membership
         setMembershipInfo({
+          fpoId: m.fpo_id,
           fpoName: m.organization_name,
           memberSince: m.approved_at
             ? new Date(m.approved_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -132,9 +138,62 @@ export default function FarmerDashboard() {
   }, 0)
   const recentSales = soldDispatches.slice(0, 4)
 
+  const handleLeaveFPO = async () => {
+    const farmerId = localStorage.getItem('userId') || ''
+    if (!farmerId || !membershipInfo?.fpoId) return
+    setLeavingFPO(true)
+    setLeaveError('')
+    try {
+      const res  = await fetch('/api/farmers/leave', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ farmerId, fpoId: membershipInfo.fpoId, reason: 'Farmer requested to leave' }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setMembershipInfo(null)
+        setHasFPO(false)
+        setShowLeaveConfirm(false)
+        setShowFPOOnboarding(true)
+      } else {
+        setLeaveError(data.error || 'Could not leave. Please try again.')
+      }
+    } catch {
+      setLeaveError('Network error. Please try again.')
+    }
+    setLeavingFPO(false)
+  }
+
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
-      <FarmerHeader subtitle="Farmer Dashboard" activeNav="dashboard" sidebarOpen={sidebarOpen} onSidebarToggle={() => setSidebarOpen(v => !v)} />
+      <FarmerHeader
+        subtitle="Farmer Dashboard"
+        activeNav="dashboard"
+        sidebarOpen={sidebarOpen}
+        onSidebarToggle={() => setSidebarOpen(v => !v)}
+        onLeaveFPO={() => {
+          setHasFPO(false)
+          setMembershipInfo(null)
+          setShowFPOOnboarding(true)
+        }}
+      />
+
+      {/* FPO onboarding modal — shown after leaving or when farmer has no FPO */}
+      {showFPOOnboarding && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="min-h-full bg-[#0A0A0A]/95 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-md relative">
+              <button
+                onClick={() => setShowFPOOnboarding(false)}
+                className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-[#1A1A1A] border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                ✕
+              </button>
+              <FPOOnboarding onComplete={() => setShowFPOOnboarding(false)} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex">
         {/* Sidebar */}
@@ -157,9 +216,7 @@ export default function FarmerDashboard() {
         </motion.aside>
 
         <main className="flex-1 overflow-auto">
-          {showFPOOnboarding ? (
-            <FPOOnboarding />
-          ) : loading ? (
+          {loading ? (
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="relative w-12 h-12">
                 <div className="absolute inset-0 rounded-full border-2 border-emerald-500/20" />
@@ -172,16 +229,51 @@ export default function FarmerDashboard() {
               {/* FPO membership strip */}
               {hasFPO && membershipInfo && (
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-                  className="glass rounded-xl p-4 border border-blue-500/20 bg-gradient-to-r from-blue-500/[0.07] to-transparent flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider mb-0.5">FPO Membership</p>
-                    <p className="text-white font-bold">{membershipInfo.fpoName}</p>
-                    <p className="text-xs text-gray-500">Member since {membershipInfo.memberSince} · {membershipInfo.status}</p>
+                  className="glass rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-500/[0.07] to-transparent overflow-hidden">
+                  <div className="p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider mb-0.5">FPO Membership</p>
+                      <p className="text-white font-bold">{membershipInfo.fpoName}</p>
+                      <p className="text-xs text-gray-500">Member since {membershipInfo.memberSince} · {membershipInfo.status}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => { setShowLeaveConfirm(v => !v); setLeaveError('') }}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-orange-400 border border-orange-500/30 px-3 py-1.5 rounded-lg hover:bg-orange-500/10 transition-colors"
+                      >
+                        <DoorOpen className="w-3.5 h-3.5" /> Leave FPO
+                      </button>
+                      <Link href="/farmer-dashboard/dispatches"
+                        className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors">
+                        Track Dispatch <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
-                  <Link href="/farmer-dashboard/dispatches"
-                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors whitespace-nowrap">
-                    Track Dispatch <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+
+                  {/* Leave confirmation panel */}
+                  {showLeaveConfirm && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      className="border-t border-orange-500/20 bg-orange-500/[0.04] px-4 py-3 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-orange-300">Leave {membershipInfo.fpoName}?</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Any pending crops or unpaid payouts must be settled first. You can join another FPO afterwards.</p>
+                          {leaveError && <p className="text-xs text-red-400 mt-1">{leaveError}</p>}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => { setShowLeaveConfirm(false); setLeaveError('') }}
+                          className="px-4 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white border border-white/10 hover:bg-white/[0.05] transition-colors">
+                          Cancel
+                        </button>
+                        <button onClick={handleLeaveFPO} disabled={leavingFPO}
+                          className="px-4 py-1.5 rounded-lg text-xs font-bold text-orange-300 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                          {leavingFPO ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Leaving…</> : 'Yes, Leave FPO'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
 
