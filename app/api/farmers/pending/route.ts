@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   try {
-    const fpoId = req.nextUrl.searchParams.get('fpoId')
+    const session = await getSessionFromRequest(req)
+    const fpoId = req.nextUrl.searchParams.get('fpoId') || session?.fpo_id
     if (!fpoId) {
       return NextResponse.json({ success: false, error: 'fpoId is required' }, { status: 400 })
     }

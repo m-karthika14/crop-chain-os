@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   try {
-    const fpoId = req.nextUrl.searchParams.get('fpoId')
+    const session = await getSessionFromRequest(req)
+    const fpoId = req.nextUrl.searchParams.get('fpoId') || session?.fpo_id
     if (!fpoId) {
       return NextResponse.json({ success: false, error: 'fpoId required' }, { status: 400 })
     }
@@ -12,12 +14,15 @@ export async function GET(req: NextRequest) {
 
     const [farmers, harvest, revenueMonth, revenueTotal, pending, mandis] = await Promise.all([
       db.query(
-        `SELECT COUNT(*) as count FROM farmers WHERE fpo_id = $1`,
+        `SELECT COUNT(*) as count
+         FROM fpo_memberships
+         WHERE fpo_id = $1 AND status = 'ACTIVE'`,
         [fpoId]
       ),
       db.query(
-        `SELECT COALESCE(SUM(quantity_final), 0) as qty
-         FROM harvests WHERE fpo_id = $1 AND status NOT IN ('SOLD', 'REJECTED')`,
+        `SELECT COALESCE(SUM(COALESCE(quantity_final, quantity_actual, quantity_estimated, 0)), 0) as qty
+         FROM harvests
+         WHERE fpo_id = $1 AND status NOT IN ('SOLD', 'PAID', 'REJECTED')`,
         [fpoId]
       ),
       db.query(
