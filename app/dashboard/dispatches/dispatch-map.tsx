@@ -2,22 +2,43 @@
 
 import { useEffect, useRef } from 'react'
 
-const ROUTE: Array<{ pos: [number, number]; label: string; stage: number }> = [
-  { pos: [12.97, 77.59], label: 'Karnataka — FPO Origin', stage: 0 },
+const DEFAULT_ROUTE: Array<{ pos: [number, number]; label: string; stage: number }> = [
+  { pos: [12.97, 77.59], label: 'FPO Origin', stage: 0 },
   { pos: [14.46, 78.82], label: 'Andhra Pradesh', stage: 1 },
   { pos: [17.38, 78.48], label: 'Telangana', stage: 2 },
   { pos: [21.14, 79.09], label: 'Maharashtra', stage: 2 },
   { pos: [23.25, 77.41], label: 'Madhya Pradesh', stage: 2 },
   { pos: [26.91, 75.78], label: 'Rajasthan', stage: 2 },
-  { pos: [29.68, 76.98], label: 'Karnal, Haryana — Mandi', stage: 3 },
+  { pos: [29.68, 76.98], label: 'Mandi Destination', stage: 3 },
 ]
+
+function buildRoute(
+  startPos?: [number, number],
+  endPos?: [number, number],
+): typeof DEFAULT_ROUTE {
+  if (!startPos || !endPos) return DEFAULT_ROUTE
+  return Array.from({ length: 7 }, (_, i) => {
+    const t = i / 6
+    return {
+      pos: [
+        startPos[0] + (endPos[0] - startPos[0]) * t,
+        startPos[1] + (endPos[1] - startPos[1]) * t,
+      ] as [number, number],
+      label: i === 0 ? 'FPO Origin' : i === 6 ? 'Mandi Destination' : `Waypoint ${i}`,
+      stage: i < 2 ? i : i < 5 ? 2 : 3,
+    }
+  })
+}
 
 interface Props {
   truckIndex: number
+  startPos?: [number, number]
+  endPos?: [number, number]
   height?: number
 }
 
-export default function DispatchMap({ truckIndex: rawTruckIndex, height = 350 }: Props) {
+export default function DispatchMap({ truckIndex: rawTruckIndex, startPos, endPos, height = 350 }: Props) {
+  const ROUTE = buildRoute(startPos, endPos)
   const truckIndex = Number.isFinite(rawTruckIndex)
     ? Math.max(0, Math.min(rawTruckIndex, ROUTE.length - 1))
     : 0
@@ -27,7 +48,7 @@ export default function DispatchMap({ truckIndex: rawTruckIndex, height = 350 }:
   const completedLineRef = useRef<import('leaflet').Polyline | null>(null)
   const remainingLineRef = useRef<import('leaflet').Polyline | null>(null)
 
-  // initialise map once
+  // initialise map once on mount
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
     let mounted = true
@@ -53,55 +74,47 @@ export default function DispatchMap({ truckIndex: rawTruckIndex, height = 350 }:
         { maxZoom: 18 }
       ).addTo(map)
 
-      // fit india route bounds
+      const allLats = ROUTE.map(r => r.pos[0])
+      const allLngs = ROUTE.map(r => r.pos[1])
       map.fitBounds(
-        [[12.5, 76.5], [30.5, 80.0]],
+        [[Math.min(...allLats) - 1, Math.min(...allLngs) - 1], [Math.max(...allLats) + 1, Math.max(...allLngs) + 1]],
         { padding: [40, 40] }
       )
 
-      // start marker
       const startIcon = L.divIcon({
         className: '',
         iconSize: [40, 40],
         iconAnchor: [20, 20],
-        html: '<div style="background:linear-gradient(135deg, #10B981, #059669);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 20px rgba(16,185,129,0.6), inset 0 0 10px rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.3)">🌾</div>',
+        html: '<div style="background:linear-gradient(135deg,#10B981,#059669);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 20px rgba(16,185,129,0.6),inset 0 0 10px rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.3)">🌾</div>',
       })
-      L.marker(ROUTE[0].pos, { icon: startIcon })
-        .addTo(map)
-        .bindPopup('GreenHarvest FPO | Karnataka | 850q Wheat dispatched')
+      L.marker(ROUTE[0].pos, { icon: startIcon }).addTo(map).bindPopup(ROUTE[0].label)
 
-      // end marker
       const endIcon = L.divIcon({
         className: '',
         iconSize: [40, 40],
         iconAnchor: [20, 20],
-        html: '<div style="background:linear-gradient(135deg, #F59E0B, #D97706);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 20px rgba(245,158,11,0.6), inset 0 0 10px rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.3)">🏪</div>',
+        html: '<div style="background:linear-gradient(135deg,#F59E0B,#D97706);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 20px rgba(245,158,11,0.6),inset 0 0 10px rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.3)">🏪</div>',
       })
-      L.marker(ROUTE[ROUTE.length - 1].pos, { icon: endIcon })
-        .addTo(map)
-        .bindPopup('Karnal Mandi | ₹2,387/quintal | Trust Score: 94')
+      L.marker(ROUTE[ROUTE.length - 1].pos, { icon: endIcon }).addTo(map).bindPopup(ROUTE[ROUTE.length - 1].label)
 
-      // completed route polyline
       const completedLine = L.polyline(
         ROUTE.slice(0, truckIndex + 1).map((r) => r.pos),
         { color: '#10B981', weight: 4, opacity: 1 }
       ).addTo(map)
       completedLineRef.current = completedLine
 
-      // remaining route polyline
       const remainingLine = L.polyline(
         ROUTE.slice(truckIndex).map((r) => r.pos),
         { color: '#374151', weight: 3, dashArray: '10,8', opacity: 0.8 }
       ).addTo(map)
       remainingLineRef.current = remainingLine
 
-      // truck marker
       if (!ROUTE[truckIndex]) return
       const truckIcon = L.divIcon({
         className: '',
         iconSize: [40, 40],
         iconAnchor: [20, 20],
-        html: '<div style="font-size:28px;filter:drop-shadow(0 0 12px #F59E0B);animation:truckBounce 1s infinite;transform-origin:center center">🚛</div>',
+        html: '<div style="font-size:28px;filter:drop-shadow(0 0 12px #F59E0B)">🚛</div>',
       })
       const truckMarker = L.marker(ROUTE[truckIndex].pos, { icon: truckIcon })
         .addTo(map)
@@ -111,9 +124,7 @@ export default function DispatchMap({ truckIndex: rawTruckIndex, height = 350 }:
       mapRef.current = map
     })
 
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -121,37 +132,29 @@ export default function DispatchMap({ truckIndex: rawTruckIndex, height = 350 }:
   useEffect(() => {
     if (!mapRef.current) return
 
-    import('leaflet').then((L) => {
+    import('leaflet').then(() => {
       const map = mapRef.current
-      if (!map) return
+      if (!map || !ROUTE[truckIndex]) return
 
-      // move truck
       if (truckMarkerRef.current) {
         truckMarkerRef.current.setLatLng(ROUTE[truckIndex].pos)
         truckMarkerRef.current.bindPopup(ROUTE[truckIndex].label)
       }
 
-      // update completed line (from start to current position + 1)
       if (completedLineRef.current) {
-        const completedRoute = ROUTE.slice(0, truckIndex + 1).map((r) => r.pos)
-        completedLineRef.current.setLatLngs(completedRoute)
+        completedLineRef.current.setLatLngs(ROUTE.slice(0, truckIndex + 1).map((r) => r.pos))
       }
 
-      // update remaining line (from current position to end)
       if (remainingLineRef.current) {
-        const remainingRoute = ROUTE.slice(truckIndex).map((r) => r.pos)
-        if (remainingRoute.length >= 2) {
-          remainingLineRef.current.setLatLngs(remainingRoute)
-        } else if (remainingRoute.length === 1) {
-          // if only one point remains, create a tiny line to show final destination
-          remainingLineRef.current.setLatLngs([remainingRoute[0], remainingRoute[0]])
+        const remaining = ROUTE.slice(truckIndex).map((r) => r.pos)
+        if (remaining.length >= 2) {
+          remainingLineRef.current.setLatLngs(remaining)
         }
       }
 
-      // pan to truck smoothly
       map.panTo(ROUTE[truckIndex].pos, { animate: true, duration: 1 })
     })
-  }, [truckIndex])
+  }, [truckIndex]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div

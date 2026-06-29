@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Truck, User, Clock, MapPin, Phone, FileCheck, ArrowRight, CheckCircle2, Send, Loader2, Bell, Users } from 'lucide-react'
 
 interface DispatchFormProps {
-  mandi: { name: string; state: string; price: number; net: number }
+  mandi: { name: string; state: string; price: number; net: number; mandiId?: string }
   quantity: string
   crop: string
   farmers: number
@@ -48,7 +48,7 @@ export function DispatchCreationForm({ mandi, quantity, crop, farmers, onSuccess
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fpoId,
-          mandiId: 'mandi-001',
+          mandiId: mandi.mandiId || 'mandi-001',
           crop,
           totalQuantity: parseInt(quantity || '0'),
           truckNumber,

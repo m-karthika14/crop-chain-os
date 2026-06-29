@@ -4,9 +4,8 @@ import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Truck, MapPin, CheckCircle2, Clock, ChevronDown, ChevronUp,
-  Bell, Users, Package, Zap, ArrowRight, ExternalLink, Leaf,
-  Loader2, Navigation, Building2, CreditCard,
+  Truck, CheckCircle2, Clock, ChevronDown, ChevronUp,
+  Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { SaleEntryForm, type SaleData } from '@/app/components/sale-entry-form'
@@ -14,24 +13,13 @@ import { PayoutScreen } from '@/app/components/payout-screen'
 
 const DispatchMap = dynamic(() => import('./dispatch-map'), { ssr: false })
 
-// Shared data
-const ROUTE = [
-  { pos: [12.97, 77.59] as [number, number], label: 'Karnataka — FPO Origin', stage: 0 },
-  { pos: [14.46, 78.82] as [number, number], label: 'Andhra Pradesh', stage: 1 },
-  { pos: [17.38, 78.48] as [number, number], label: 'Telangana', stage: 2 },
-  { pos: [21.14, 79.09] as [number, number], label: 'Maharashtra', stage: 2 },
-  { pos: [23.25, 77.41] as [number, number], label: 'Madhya Pradesh', stage: 2 },
-  { pos: [26.91, 75.78] as [number, number], label: 'Rajasthan', stage: 2 },
-  { pos: [29.68, 76.98] as [number, number], label: 'Karnal, Haryana — Mandi', stage: 3 },
-]
-
 const STAGES = [
-  { id: 0, label: 'Harvest', farmerLabel: 'Collected', Icon: Leaf },
-  { id: 1, label: 'Loading', farmerLabel: 'Loaded', Icon: Package },
-  { id: 2, label: 'Transit', farmerLabel: 'Travelling', Icon: Navigation },
-  { id: 3, label: 'Arrived', farmerLabel: 'Reached', Icon: MapPin },
-  { id: 4, label: 'Sold', farmerLabel: 'Sold', Icon: Building2 },
-  { id: 5, label: 'Paid', farmerLabel: 'Paid', Icon: CreditCard },
+  { id: 0, label: 'Harvest',  farmerLabel: 'Collected',  emoji: '🌾' },
+  { id: 1, label: 'Loading',  farmerLabel: 'Loaded',     emoji: '📦' },
+  { id: 2, label: 'Transit',  farmerLabel: 'Travelling', emoji: '🚛' },
+  { id: 3, label: 'Arrived',  farmerLabel: 'Reached',    emoji: '📍' },
+  { id: 4, label: 'Sold',     farmerLabel: 'Sold',       emoji: '🏪' },
+  { id: 5, label: 'Paid',     farmerLabel: 'Paid',       emoji: '💰' },
 ]
 
 const PAST_DISPATCHES = [
@@ -98,17 +86,15 @@ function formatCountdown(ms: number) {
   return `${h}h ${m}m ${s}s`
 }
 
-// Pipeline Pills Component
 function PipelinePills({ currentStage, farmer }: { currentStage: number; farmer?: boolean }) {
   const pct = Math.round((currentStage / (STAGES.length - 1)) * 100)
-  
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-6 gap-2">
         {STAGES.map((stage, i) => {
           const done = stage.id < currentStage
           const active = stage.id === currentStage
-          const { Icon } = stage
 
           return (
             <motion.div
@@ -117,21 +103,17 @@ function PipelinePills({ currentStage, farmer }: { currentStage: number; farmer?
               animate={{ opacity: 1, scale: active ? 1.05 : 1, y: active ? -4 : 0 }}
               transition={{ delay: i * 0.08, duration: 0.5 }}
               className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg ${
-                done 
-                  ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-400' 
-                  : active 
-                  ? 'bg-amber-500/20 border-2 border-amber-500/80 text-amber-400' 
+                done
+                  ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-400'
+                  : active
+                  ? 'bg-amber-500/20 border-2 border-amber-500/80 text-amber-400'
                   : 'bg-gray-700/20 border border-gray-600/50 text-gray-500'
               }`}
             >
               {done ? (
-                <CheckCircle2 className="w-5 h-5" />
-              ) : active ? (
-                <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-                  <Icon className="w-5 h-5" />
-                </motion.div>
+                <span className="text-lg">✅</span>
               ) : (
-                <Icon className="w-5 h-5 opacity-30" />
+                <span className={`text-xl ${!active ? 'opacity-30' : ''}`}>{stage.emoji}</span>
               )}
               <span className="text-[11px] font-semibold text-center">
                 {farmer ? stage.farmerLabel : stage.label}
@@ -140,7 +122,7 @@ function PipelinePills({ currentStage, farmer }: { currentStage: number; farmer?
           )
         })}
       </div>
-      
+
       <div className="space-y-1.5">
         <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden">
           <motion.div
@@ -158,7 +140,6 @@ function PipelinePills({ currentStage, farmer }: { currentStage: number; farmer?
   )
 }
 
-// Toast Component
 function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
   useEffect(() => {
     const t = setTimeout(onDone, 2800)
@@ -179,6 +160,7 @@ function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
 
 export default function DispatchesPage() {
   const [realDispatches, setRealDispatches] = useState<Record<string, unknown>[]>([])
+  const [fpoPos, setFpoPos] = useState<[number, number] | undefined>(undefined)
 
   useEffect(() => {
     const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
@@ -187,6 +169,18 @@ export default function DispatchesPage() {
       .then(data => {
         if (data.success && data.dispatches.length > 0) {
           setRealDispatches(data.dispatches)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    fetch(`/api/fpos/location?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.lat && data.lng) {
+          setFpoPos([parseFloat(data.lat), parseFloat(data.lng)])
         }
       })
       .catch(() => {})
@@ -203,13 +197,14 @@ export default function DispatchesPage() {
   const [showSaleForm, setShowSaleForm] = useState(false)
   const [showPayoutScreen, setShowPayoutScreen] = useState(false)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [payoutDispatchId, setPayoutDispatchId] = useState<string>('')
 
   const selectedDispatch = ACTIVE_DISPATCHES.find(d => d.id === selectedDispatchId) || ACTIVE_DISPATCHES[0]
-  const currentStage = stageMap[selectedDispatchId] || selectedDispatch.initialStage
+  const currentStage = stageMap[selectedDispatchId] ?? selectedDispatch.initialStage
 
   const heroDispatch = realDispatches.length > 0 ? {
     ...selectedDispatch,
-    truck: realDispatches[0].truck_number as string,
+    truck: realDispatches[0].truck_number as string || selectedDispatch.truck,
     from: 'GreenHarvest FPO',
     to: `${realDispatches[0].mandi_name as string}, ${realDispatches[0].mandi_state as string}`,
     crop: `${realDispatches[0].total_quantity as string} Quintals ${realDispatches[0].crop as string}`,
@@ -221,16 +216,17 @@ export default function DispatchesPage() {
       : selectedDispatch.eta,
   } : selectedDispatch
 
-  // Auto-advance stage every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStageMap(prev => ({
-        ...prev,
-        [selectedDispatchId]: Math.min(prev[selectedDispatchId] || 0, STAGES.length - 1)
-      }))
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [selectedDispatchId])
+  // Real mandi coordinates from first real dispatch
+  const mandiPos: [number, number] | undefined =
+    realDispatches[0]?.mandi_lat && realDispatches[0]?.mandi_lng
+      ? [parseFloat(realDispatches[0].mandi_lat as string), parseFloat(realDispatches[0].mandi_lng as string)]
+      : undefined
+
+  // Map stage → truck route index (0–6 along 7-waypoint route)
+  const truckRouteIndex = currentStage <= 0 ? 0
+    : currentStage === 1 ? 1
+    : currentStage === 2 ? 3
+    : 6
 
   // Countdown timer
   useEffect(() => {
@@ -238,37 +234,98 @@ export default function DispatchesPage() {
     return () => clearInterval(iv)
   }, [])
 
-  const advanceStage = useCallback(() => {
-    setStageMap(prev => {
-      const current = prev[selectedDispatchId] || 0
-      if (current === 4) {
-        setShowSaleForm(true)
-      } else if (current === 5) {
-        setShowPayoutScreen(true)
-      } else if (current < STAGES.length - 1) {
-        return { ...prev, [selectedDispatchId]: current + 1 }
+  const advanceStage = useCallback(async () => {
+    const current = stageMap[selectedDispatchId] ?? selectedDispatch.initialStage
+
+    if (current === 4) {
+      setShowSaleForm(true)
+      return
+    }
+    if (current === 5) {
+      const dispatchId = realDispatches[0]?.id as string
+      if (dispatchId) {
+        const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+        const managerId = localStorage.getItem('userId') || 'mgr-001'
+        try {
+          await fetch(`/api/dispatches/${dispatchId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'calculate_payouts', fpoId, managerId }),
+          })
+        } catch {}
       }
-      return prev
-    })
-  }, [selectedDispatchId])
+      setPayoutDispatchId(dispatchId || selectedDispatchId)
+      setShowPayoutScreen(true)
+      return
+    }
+    if (current >= STAGES.length - 1) return
+
+    setStageMap(prev => ({ ...prev, [selectedDispatchId]: current + 1 }))
+
+    const dispatchId = realDispatches[0]?.id as string
+    if (dispatchId) {
+      try {
+        const managerId = localStorage.getItem('userId') || 'mgr-001'
+        await fetch(`/api/dispatches/${dispatchId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'advance_stage', managerId }),
+        })
+      } catch (e) {
+        console.error('Stage advance error:', e)
+      }
+    }
+  }, [selectedDispatchId, stageMap, selectedDispatch.initialStage, realDispatches])
 
   if (showSaleForm) {
+    const dispatchId = realDispatches[0]?.id as string || selectedDispatchId
+    const expectedQty = parseInt(heroDispatch.crop) || 850
     return (
       <SaleEntryForm
-        onBack={() => setShowSaleForm(false)}
-        onSubmit={(_data: SaleData) => {
+        dispatch={{
+          id: dispatchId,
+          mandi: heroDispatch.to,
+          crop: crop(heroDispatch.crop),
+          quantity: expectedQty,
+          expectedRevenue: 2000000,
+          farmerCount: heroDispatch.farmers,
+          actualQuantity: expectedQty,
+        }}
+        onSuccess={async (data: SaleData) => {
+          if (dispatchId && dispatchId !== selectedDispatchId) {
+            try {
+              const managerId = localStorage.getItem('userId') || 'mgr-001'
+              await fetch(`/api/dispatches/${dispatchId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'mark_sold',
+                  actualRevenue: data.totalRevenue,
+                  managerId,
+                }),
+              })
+            } catch (e) {
+              console.error('mark_sold error:', e)
+            }
+          }
           setToast('✅ Sale recorded! Advancing to payout...')
           setTimeout(() => {
             setShowSaleForm(false)
-            advanceStage()
+            setStageMap(prev => ({ ...prev, [selectedDispatchId]: 5 }))
           }, 1500)
         }}
+        onCancel={() => setShowSaleForm(false)}
       />
     )
   }
 
   if (showPayoutScreen) {
-    return <PayoutScreen onBack={() => setShowPayoutScreen(false)} />
+    return (
+      <PayoutScreen
+        dispatchId={payoutDispatchId || (realDispatches[0]?.id as string) || selectedDispatchId}
+        onBack={() => setShowPayoutScreen(false)}
+      />
+    )
   }
 
   return (
@@ -379,7 +436,13 @@ export default function DispatchesPage() {
           transition={{ delay: 0.3 }}
           className="rounded-xl border border-emerald-500/10 overflow-hidden h-96 bg-white/[0.02]"
         >
-          <DispatchMap />
+          <DispatchMap
+            key={`${fpoPos?.join(',')}-${mandiPos?.join(',')}`}
+            truckIndex={truckRouteIndex}
+            startPos={fpoPos}
+            endPos={mandiPos}
+            height={384}
+          />
         </motion.div>
 
         {/* Past Dispatches */}
@@ -455,4 +518,9 @@ export default function DispatchesPage() {
       </AnimatePresence>
     </div>
   )
+}
+
+function crop(heroStr: string): string {
+  const parts = heroStr.split(' ')
+  return parts.length >= 3 ? parts.slice(2).join(' ') : heroStr
 }

@@ -94,7 +94,7 @@ export default function OptimizerPage() {
 
       if (data.success && data.mandis.length > 0) {
         setMandis(data.mandis)
-        setSelectedMandiName(data.winner.name)
+        setSelectedMandiName(data.winner.name.split('(')[0].trim())
         if (data.fpoLocation) setLocation(data.fpoLocation)
       }
       if (data.aiInsight) {
