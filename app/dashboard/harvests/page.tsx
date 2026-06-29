@@ -76,6 +76,7 @@ const GRADE_COLORS: Record<Grade, string> = {
 export default function HarvestsPage() {
   const [rows, setRows]       = useState<HarvestRow[]>(SEED_ROWS)
   const [displayQty, setDisplayQty] = useState(850) // animated counter
+  const [farmerOptions, setFarmerOptions] = useState(FARMER_SUGGESTIONS)
 
   // form state
   const [farmerQuery, setFarmerQuery] = useState('')
@@ -100,7 +101,48 @@ export default function HarvestsPage() {
     return () => document.removeEventListener('mousedown', handle)
   }, [])
 
-  const filteredFarmers = FARMER_SUGGESTIONS.filter(
+  // Load real data on mount
+  useEffect(() => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+
+    fetch(`/api/harvests?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.harvests) {
+          const mapped = data.harvests
+            .filter((h: Record<string, unknown>) => !['SUBMITTED', 'REJECTED'].includes(h.status as string))
+            .map((h: Record<string, unknown>) => ({
+              id: h.id as number,
+              farmer: h.farmer_name as string,
+              village: (h.farmer_village as string) || '',
+              crop: h.crop_type as Crop,
+              qty: parseFloat((h.quantity_final || h.quantity_estimated) as string),
+              grade: ((h.grade_verified || h.grade_submitted) as Grade) || 'A',
+              time: new Date(h.submitted_at as string).toLocaleTimeString('en-IN', {
+                hour: '2-digit', minute: '2-digit', hour12: false,
+              }),
+            }))
+          if (mapped.length > 0) setRows(mapped)
+        }
+      })
+      .catch(() => {})
+
+    fetch(`/api/farmers?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.farmers) {
+          setFarmerOptions(data.farmers.map((f: Record<string, unknown>, idx: number) => ({
+            id: idx + 1,
+            name: f.full_name as string,
+            village: (f.village as string) || '',
+            upi: f.upi_id ? (f.upi_id as string).substring(0, 6) + '***@upi' : 'no-upi',
+          })))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const filteredFarmers = farmerOptions.filter(
     f => f.name.toLowerCase().includes(farmerQuery.toLowerCase()) && farmerQuery.length > 0
   )
 
@@ -121,20 +163,48 @@ export default function HarvestsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!selectedFarmer || !qty || Number(qty) <= 0) return
+
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    const managerId = localStorage.getItem('userId') || 'mgr-001'
+
     const newRow: HarvestRow = {
       id: Date.now(),
-      farmer:  selectedFarmer.name,
+      farmer: selectedFarmer.name,
       village: selectedFarmer.village,
       crop,
-      qty:     Number(qty),
+      qty: Number(qty),
       grade,
-      time:    nowTime(),
-      isNew:   true,
+      time: nowTime(),
+      isNew: true,
     }
+
+    try {
+      const res = await fetch('/api/harvests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmerId: String(selectedFarmer.id),
+          fpoId,
+          managerId,
+          cropType: crop,
+          variety: '',
+          grade,
+          quantityEstimated: Number(qty),
+          moisture: 12,
+          notes,
+          addedByManager: true,
+        }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        alert(data.error || 'Failed to add harvest')
+        return
+      }
+    } catch {}
+
     setRows(prev => [newRow, ...prev])
-    // reset form
     setFarmerQuery(''); setSelectedFarmer(null)
     setQty(''); setGrade('A'); setNotes('')
   }

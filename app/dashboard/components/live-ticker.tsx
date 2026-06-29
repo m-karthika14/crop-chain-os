@@ -1,9 +1,10 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Banknote } from 'lucide-react'
 
-const payouts = [
+const DEFAULT_PAYOUTS = [
   'Ramu Patil received ₹12,400 — Wheat, Azadpur Mandi',
   'Sunita Devi received ₹8,200 — Onion, Koyambedu',
   'Ganesh Yadav received ₹19,500 — Soybean, Gultekdi',
@@ -14,11 +15,27 @@ const payouts = [
   'Bhima Rao received ₹7,650 — Cotton, Guntur APMC',
 ]
 
-// Duplicate for seamless loop
-const tickerItems = [...payouts, ...payouts]
-
 export function LiveTicker() {
-  const totalWidth = payouts.length * 340 // approximate per-item pixel width
+  const [prices, setPrices] = useState(DEFAULT_PAYOUTS)
+
+  useEffect(() => {
+    fetch('/api/mandis?crop=Wheat')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.mandis.length > 0) {
+          const livePrices = data.mandis
+            .slice(0, 10)
+            .map((m: Record<string, unknown>) =>
+              `${(m.name as string).split(' ')[0]} Mandi — Wheat ₹${(m.modal_price as number) || 0}/q`
+            )
+          setPrices([...livePrices, ...DEFAULT_PAYOUTS])
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const tickerItems = [...prices, ...prices]
+  const totalWidth = prices.length * 340
 
   return (
     <div className="glass rounded-xl border border-emerald-500/10 overflow-hidden">

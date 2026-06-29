@@ -178,6 +178,20 @@ function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
 }
 
 export default function DispatchesPage() {
+  const [realDispatches, setRealDispatches] = useState<Record<string, unknown>[]>([])
+
+  useEffect(() => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    fetch(`/api/dispatches?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.dispatches.length > 0) {
+          setRealDispatches(data.dispatches)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const [selectedDispatchId, setSelectedDispatchId] = useState('KA-01-AB-1234')
   const [stageMap, setStageMap] = useState<Record<string, number>>({
     'KA-01-AB-1234': 3,
@@ -192,6 +206,20 @@ export default function DispatchesPage() {
 
   const selectedDispatch = ACTIVE_DISPATCHES.find(d => d.id === selectedDispatchId) || ACTIVE_DISPATCHES[0]
   const currentStage = stageMap[selectedDispatchId] || selectedDispatch.initialStage
+
+  const heroDispatch = realDispatches.length > 0 ? {
+    ...selectedDispatch,
+    truck: realDispatches[0].truck_number as string,
+    from: 'GreenHarvest FPO',
+    to: `${realDispatches[0].mandi_name as string}, ${realDispatches[0].mandi_state as string}`,
+    crop: `${realDispatches[0].total_quantity as string} Quintals ${realDispatches[0].crop as string}`,
+    departed: realDispatches[0].departed_at
+      ? new Date(realDispatches[0].departed_at as string).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      : selectedDispatch.departed,
+    eta: realDispatches[0].eta
+      ? new Date(realDispatches[0].eta as string).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      : selectedDispatch.eta,
+  } : selectedDispatch
 
   // Auto-advance stage every 5 seconds
   useEffect(() => {
@@ -294,7 +322,7 @@ export default function DispatchesPage() {
                   <span className="text-xs text-amber-400 font-semibold uppercase tracking-widest">Truck in Transit</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                 </div>
-                <h2 className="text-xl font-bold text-white tracking-tight">{selectedDispatch.truck}</h2>
+                <h2 className="text-xl font-bold text-white tracking-tight">{heroDispatch.truck}</h2>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg">
@@ -305,12 +333,12 @@ export default function DispatchesPage() {
 
           <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'From', value: selectedDispatch.from },
-              { label: 'To', value: selectedDispatch.to },
-              { label: 'Crop', value: selectedDispatch.crop },
-              { label: 'Farmers', value: selectedDispatch.farmers },
-              { label: 'Departed', value: selectedDispatch.departed },
-              { label: 'ETA', value: selectedDispatch.eta },
+              { label: 'From', value: heroDispatch.from },
+              { label: 'To', value: heroDispatch.to },
+              { label: 'Crop', value: heroDispatch.crop },
+              { label: 'Farmers', value: heroDispatch.farmers },
+              { label: 'Departed', value: heroDispatch.departed },
+              { label: 'ETA', value: heroDispatch.eta },
             ].map(({ label, value }) => (
               <motion.div
                 key={label}

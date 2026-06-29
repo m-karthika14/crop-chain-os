@@ -1,121 +1,97 @@
-// Seeded deterministic pseudo-random for reproducible map
-function seededRand(seed: number) {
-  const x = Math.sin(seed + 1) * 10000
-  return x - Math.floor(x)
-}
+export const FPO_LOCATION: [number, number] = [29.685, 76.988]
 
-// India bounding box roughly: lat 8–37, lng 68–97
-// We cluster around real mandi-dense states
-const clusters = [
-  { lat: 29.0, lng: 76.0, spread: 3.5, count: 180, name: 'Haryana/Punjab' },
-  { lat: 26.8, lng: 80.9, spread: 4.0, count: 160, name: 'UP' },
-  { lat: 23.5, lng: 77.5, spread: 3.5, count: 140, name: 'MP' },
-  { lat: 18.5, lng: 76.0, spread: 3.5, count: 130, name: 'Maharashtra' },
-  { lat: 22.5, lng: 88.3, spread: 2.5, count: 100, name: 'West Bengal' },
-  { lat: 13.0, lng: 77.5, spread: 3.0, count: 110, name: 'Karnataka' },
-  { lat: 10.5, lng: 77.0, spread: 2.5, count: 90,  name: 'Tamil Nadu' },
-  { lat: 20.5, lng: 85.8, spread: 2.5, count: 80,  name: 'Odisha' },
-  { lat: 25.5, lng: 85.0, spread: 2.5, count: 80,  name: 'Bihar' },
-  { lat: 27.0, lng: 73.0, spread: 3.0, count: 80,  name: 'Rajasthan' },
-  { lat: 23.0, lng: 72.5, spread: 2.5, count: 80,  name: 'Gujarat' },
-  { lat: 17.5, lng: 80.5, spread: 2.5, count: 60,  name: 'Andhra/Telangana' },
-  { lat: 15.5, lng: 74.5, spread: 1.5, count: 40,  name: 'Goa/Konkan' },
-  { lat: 25.5, lng: 91.5, spread: 2.0, count: 30,  name: 'Northeast' },
-  { lat: 31.5, lng: 75.5, spread: 2.0, count: 33,  name: 'Punjab Hills' },
-]
-
-const mandiNames = [
-  'Karnal', 'Panipat', 'Ambala', 'Hisar', 'Rohtak', 'Sonipat', 'Kurukshetra',
-  'Agra', 'Kanpur', 'Lucknow', 'Varanasi', 'Meerut', 'Allahabad', 'Bareilly',
-  'Bhopal', 'Indore', 'Gwalior', 'Jabalpur', 'Ujjain', 'Ratlam',
-  'Pune', 'Nashik', 'Nagpur', 'Aurangabad', 'Kolhapur', 'Solapur',
-  'Kolkata', 'Asansol', 'Siliguri', 'Durgapur', 'Howrah',
-  'Bangalore', 'Mysore', 'Hubli', 'Mangalore', 'Bellary',
-  'Chennai', 'Coimbatore', 'Madurai', 'Salem', 'Tirupur',
-  'Bhubaneswar', 'Cuttack', 'Rourkela', 'Berhampur',
-  'Patna', 'Gaya', 'Muzaffarpur', 'Bhagalpur',
-  'Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Bikaner', 'Ajmer',
-  'Ahmedabad', 'Surat', 'Baroda', 'Rajkot', 'Gandhinagar',
-  'Hyderabad', 'Warangal', 'Vijayawada', 'Visakhapatnam',
-  'Delhi Azadpur', 'Delhi Okhla', 'Delhi Shahdara',
-  'Amritsar', 'Ludhiana', 'Jalandhar', 'Patiala',
-  'Guwahati', 'Shillong', 'Dibrugarh',
-]
-
-const crops = ['Wheat', 'Rice', 'Tomato', 'Onion', 'Potato', 'Soybean', 'Maize', 'Cotton', 'Mustard', 'Chilli']
-
-export interface MandiData {
-  id: number
+export interface StaticMandi {
   name: string
   lat: number
   lng: number
   trustScore: number
   price: number
-  volume: number // quintals/day
-  paymentDelay: number // days
-  commission: number // %
-  distance: number // km from FPO
-  crop: string
-  isTop10: boolean
   state: string
 }
 
-let globalId = 0
+// Visual-only markers for south India coverage — not from DB
+export const SOUTH_INDIA_MANDIS: StaticMandi[] = [
+  // Andhra Pradesh
+  { name: 'Vijayawada',    lat: 16.506, lng: 80.648, trustScore: 72, price: 2210, state: 'Andhra Pradesh' },
+  { name: 'Guntur',        lat: 16.307, lng: 80.437, trustScore: 68, price: 1980, state: 'Andhra Pradesh' },
+  { name: 'Tirupati',      lat: 13.628, lng: 79.420, trustScore: 61, price: 2050, state: 'Andhra Pradesh' },
+  { name: 'Kurnool',       lat: 15.828, lng: 78.037, trustScore: 55, price: 1760, state: 'Andhra Pradesh' },
+  { name: 'Nellore',       lat: 14.442, lng: 79.987, trustScore: 63, price: 1890, state: 'Andhra Pradesh' },
+  { name: 'Visakhapatnam', lat: 17.686, lng: 83.218, trustScore: 77, price: 2340, state: 'Andhra Pradesh' },
+  { name: 'Ongole',        lat: 15.503, lng: 80.045, trustScore: 57, price: 1820, state: 'Andhra Pradesh' },
+  { name: 'Kakinada',      lat: 16.980, lng: 82.247, trustScore: 65, price: 2100, state: 'Andhra Pradesh' },
+  { name: 'Rajahmundry',   lat: 17.005, lng: 81.804, trustScore: 70, price: 2190, state: 'Andhra Pradesh' },
+  { name: 'Anantapur',     lat: 14.682, lng: 77.600, trustScore: 52, price: 1650, state: 'Andhra Pradesh' },
 
-export const mandis: MandiData[] = clusters.flatMap((cluster, ci) =>
-  Array.from({ length: cluster.count }, (_, i) => {
-    const seed = ci * 10000 + i
-    const lat = cluster.lat + (seededRand(seed) - 0.5) * cluster.spread * 2
-    const lng = cluster.lng + (seededRand(seed + 100) - 0.5) * cluster.spread * 2
-    const trustScore = Math.round(30 + seededRand(seed + 200) * 70)
-    const price = Math.round(1800 + seededRand(seed + 300) * 1200)
-    const volume = Math.round(200 + seededRand(seed + 400) * 2800)
-    const paymentDelay = Math.round(seededRand(seed + 500) * 7)
-    const commission = parseFloat((0.5 + seededRand(seed + 600) * 3.5).toFixed(1))
-    const distance = Math.round(20 + seededRand(seed + 700) * 450)
-    const nameIdx = (ci * 17 + i * 7) % mandiNames.length
-    const cropIdx = (ci * 5 + i * 3) % crops.length
-    return {
-      id: globalId++,
-      name: `${mandiNames[nameIdx]} ${i > 0 ? `(${String.fromCharCode(65 + (i % 26))})` : ''}`.trim(),
-      lat,
-      lng,
-      trustScore,
-      price,
-      volume,
-      paymentDelay,
-      commission,
-      distance,
-      crop: crops[cropIdx],
-      isTop10: false,
-      state: cluster.name,
-    }
-  })
-)
+  // Tamil Nadu
+  { name: 'Chennai',       lat: 13.082, lng: 80.272, trustScore: 82, price: 2680, state: 'Tamil Nadu' },
+  { name: 'Coimbatore',    lat: 11.017, lng: 76.958, trustScore: 79, price: 2510, state: 'Tamil Nadu' },
+  { name: 'Madurai',       lat: 9.925,  lng: 78.119, trustScore: 74, price: 2290, state: 'Tamil Nadu' },
+  { name: 'Salem',         lat: 11.664, lng: 78.146, trustScore: 69, price: 2150, state: 'Tamil Nadu' },
+  { name: 'Trichy',        lat: 10.791, lng: 78.700, trustScore: 71, price: 2240, state: 'Tamil Nadu' },
+  { name: 'Tirunelveli',   lat: 8.727,  lng: 77.695, trustScore: 62, price: 1970, state: 'Tamil Nadu' },
+  { name: 'Erode',         lat: 11.341, lng: 77.717, trustScore: 75, price: 2380, state: 'Tamil Nadu' },
+  { name: 'Vellore',       lat: 12.916, lng: 79.132, trustScore: 66, price: 2080, state: 'Tamil Nadu' },
+  { name: 'Dindigul',      lat: 10.366, lng: 77.972, trustScore: 58, price: 1850, state: 'Tamil Nadu' },
+  { name: 'Thanjavur',     lat: 10.787, lng: 79.139, trustScore: 73, price: 2310, state: 'Tamil Nadu' },
 
-// Mark top 10 by combined score (high trust, high price, low delay)
-const scored = [...mandis].sort((a, b) => {
-  const scoreA = a.trustScore * 0.5 + (a.price / 30) - a.paymentDelay * 10 - a.commission * 5
-  const scoreB = b.trustScore * 0.5 + (b.price / 30) - b.paymentDelay * 10 - b.commission * 5
-  return scoreB - scoreA
-})
-scored.slice(0, 10).forEach(m => { m.isTop10 = true })
+  // Kerala
+  { name: 'Thiruvananthapuram', lat: 8.524,  lng: 76.936, trustScore: 78, price: 2450, state: 'Kerala' },
+  { name: 'Kochi',              lat: 9.931,  lng: 76.267, trustScore: 84, price: 2720, state: 'Kerala' },
+  { name: 'Kozhikode',          lat: 11.258, lng: 75.780, trustScore: 76, price: 2390, state: 'Kerala' },
+  { name: 'Thrissur',           lat: 10.527, lng: 76.214, trustScore: 71, price: 2260, state: 'Kerala' },
+  { name: 'Kannur',             lat: 11.868, lng: 75.370, trustScore: 67, price: 2120, state: 'Kerala' },
+  { name: 'Kollam',             lat: 8.888,  lng: 76.614, trustScore: 63, price: 1990, state: 'Kerala' },
+  { name: 'Palakkad',           lat: 10.776, lng: 76.654, trustScore: 69, price: 2170, state: 'Kerala' },
+  { name: 'Alappuzha',          lat: 9.498,  lng: 76.339, trustScore: 72, price: 2280, state: 'Kerala' },
 
-// The FPO home base (Karnal, Haryana)
-export const FPO_LOCATION: [number, number] = [29.685, 76.988]
+  // Telangana
+  { name: 'Hyderabad',     lat: 17.385, lng: 78.486, trustScore: 81, price: 2590, state: 'Telangana' },
+  { name: 'Warangal',      lat: 17.977, lng: 79.598, trustScore: 70, price: 2180, state: 'Telangana' },
+  { name: 'Nizamabad',     lat: 18.672, lng: 78.094, trustScore: 64, price: 1970, state: 'Telangana' },
+  { name: 'Khammam',       lat: 17.247, lng: 80.150, trustScore: 60, price: 1880, state: 'Telangana' },
+  { name: 'Karimnagar',    lat: 18.438, lng: 79.129, trustScore: 67, price: 2050, state: 'Telangana' },
+  { name: 'Mahbubnagar',   lat: 16.738, lng: 77.983, trustScore: 55, price: 1730, state: 'Telangana' },
+  { name: 'Nalgonda',      lat: 17.058, lng: 79.267, trustScore: 59, price: 1810, state: 'Telangana' },
 
-// Pre-selected winner mandi
-export const WINNER_MANDI = mandis.find(m => m.name.startsWith('Karnal') && !m.name.includes('(')) ?? mandis[0]
-WINNER_MANDI.trustScore = 94
-WINNER_MANDI.price = 2387
-WINNER_MANDI.paymentDelay = 1
-WINNER_MANDI.commission = 1.5
-WINNER_MANDI.distance = 87
-WINNER_MANDI.isTop10 = true
+  // Chhattisgarh
+  { name: 'Raipur',        lat: 21.251, lng: 81.629, trustScore: 73, price: 2230, state: 'Chhattisgarh' },
+  { name: 'Bilaspur',      lat: 22.075, lng: 82.148, trustScore: 65, price: 2010, state: 'Chhattisgarh' },
+  { name: 'Durg',          lat: 21.190, lng: 81.283, trustScore: 61, price: 1900, state: 'Chhattisgarh' },
+  { name: 'Korba',         lat: 22.345, lng: 82.700, trustScore: 56, price: 1760, state: 'Chhattisgarh' },
+  { name: 'Rajnandgaon',   lat: 21.097, lng: 81.030, trustScore: 58, price: 1820, state: 'Chhattisgarh' },
+  { name: 'Jagdalpur',     lat: 19.075, lng: 82.022, trustScore: 49, price: 1640, state: 'Chhattisgarh' },
 
-// Comparison mandis for the sidebar
-export const COMPARISON_MANDIS = [
-  { name: 'Karnal Mandi', price: 2387, trust: 94, net: '₹17.6L', winner: true },
-  { name: 'Delhi Azadpur', price: 2400, trust: 52, net: '₹15.2L', winner: false },
-  { name: 'Panipat Mandi', price: 2290, trust: 71, net: '₹16.1L', winner: false },
+  // Jharkhand
+  { name: 'Ranchi',        lat: 23.344, lng: 85.309, trustScore: 70, price: 2140, state: 'Jharkhand' },
+  { name: 'Jamshedpur',    lat: 22.805, lng: 86.203, trustScore: 74, price: 2260, state: 'Jharkhand' },
+  { name: 'Dhanbad',       lat: 23.795, lng: 86.430, trustScore: 66, price: 2020, state: 'Jharkhand' },
+  { name: 'Bokaro',        lat: 23.667, lng: 85.991, trustScore: 62, price: 1940, state: 'Jharkhand' },
+  { name: 'Hazaribagh',    lat: 23.993, lng: 85.364, trustScore: 57, price: 1790, state: 'Jharkhand' },
+  { name: 'Giridih',       lat: 24.188, lng: 86.299, trustScore: 52, price: 1680, state: 'Jharkhand' },
+
+  // West Bengal
+  { name: 'Kolkata',       lat: 22.572, lng: 88.364, trustScore: 83, price: 2670, state: 'West Bengal' },
+  { name: 'Howrah',        lat: 22.588, lng: 88.310, trustScore: 78, price: 2440, state: 'West Bengal' },
+  { name: 'Durgapur',      lat: 23.480, lng: 87.320, trustScore: 72, price: 2220, state: 'West Bengal' },
+  { name: 'Asansol',       lat: 23.683, lng: 86.983, trustScore: 69, price: 2130, state: 'West Bengal' },
+  { name: 'Siliguri',      lat: 26.722, lng: 88.396, trustScore: 74, price: 2300, state: 'West Bengal' },
+  { name: 'Bardhaman',     lat: 23.233, lng: 87.862, trustScore: 67, price: 2060, state: 'West Bengal' },
+  { name: 'Malda',         lat: 25.011, lng: 88.140, trustScore: 60, price: 1870, state: 'West Bengal' },
+  { name: 'Murshidabad',   lat: 24.185, lng: 88.269, trustScore: 63, price: 1950, state: 'West Bengal' },
+  { name: 'Jalpaiguri',    lat: 26.543, lng: 88.718, trustScore: 65, price: 2000, state: 'West Bengal' },
+
+  // North East
+  { name: 'Guwahati',      lat: 26.145, lng: 91.736, trustScore: 76, price: 2360, state: 'Assam' },
+  { name: 'Dibrugarh',     lat: 27.480, lng: 94.912, trustScore: 64, price: 2010, state: 'Assam' },
+  { name: 'Silchar',       lat: 24.827, lng: 92.798, trustScore: 59, price: 1870, state: 'Assam' },
+  { name: 'Jorhat',        lat: 26.757, lng: 94.203, trustScore: 61, price: 1920, state: 'Assam' },
+  { name: 'Nagaon',        lat: 26.347, lng: 92.684, trustScore: 55, price: 1750, state: 'Assam' },
+  { name: 'Shillong',      lat: 25.574, lng: 91.882, trustScore: 68, price: 2090, state: 'Meghalaya' },
+  { name: 'Tura',          lat: 25.516, lng: 90.213, trustScore: 51, price: 1680, state: 'Meghalaya' },
+  { name: 'Imphal',        lat: 24.817, lng: 93.936, trustScore: 62, price: 1950, state: 'Manipur' },
+  { name: 'Aizawl',        lat: 23.727, lng: 92.718, trustScore: 54, price: 1710, state: 'Mizoram' },
+  { name: 'Agartala',      lat: 23.831, lng: 91.280, trustScore: 66, price: 2040, state: 'Tripura' },
+  { name: 'Itanagar',      lat: 27.084, lng: 93.608, trustScore: 49, price: 1630, state: 'Arunachal Pradesh' },
+  { name: 'Kohima',        lat: 25.670, lng: 94.110, trustScore: 52, price: 1700, state: 'Nagaland' },
 ]

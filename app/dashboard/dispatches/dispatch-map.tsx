@@ -18,7 +18,9 @@ interface Props {
 }
 
 export default function DispatchMap({ truckIndex: rawTruckIndex, height = 350 }: Props) {
-  const truckIndex = Math.max(0, Math.min(rawTruckIndex, ROUTE.length - 1))
+  const truckIndex = Number.isFinite(rawTruckIndex)
+    ? Math.max(0, Math.min(rawTruckIndex, ROUTE.length - 1))
+    : 0
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<import('leaflet').Map | null>(null)
   const truckMarkerRef = useRef<import('leaflet').Marker | null>(null)
@@ -94,6 +96,7 @@ export default function DispatchMap({ truckIndex: rawTruckIndex, height = 350 }:
       remainingLineRef.current = remainingLine
 
       // truck marker
+      if (!ROUTE[truckIndex]) return
       const truckIcon = L.divIcon({
         className: '',
         iconSize: [40, 40],

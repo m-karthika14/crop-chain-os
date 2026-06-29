@@ -1,11 +1,12 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { MapPin, Star, TrendingUp, TrendingDown, Minus, ArrowUpRight } from 'lucide-react'
 import { FloralCard } from '@/components/floral-card'
 
-const mandis = [
+const DEFAULT_MANDIS = [
   {
     name: 'Karnal Mandi',
     city: 'Haryana',
@@ -42,6 +43,28 @@ const trustBg = (score: number) =>
   score >= 80 ? 'bg-emerald-500/10 border-emerald-500/20' : score >= 60 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-red-500/10 border-red-500/20'
 
 export function TopMandis() {
+  const [mandis, setMandis] = useState(DEFAULT_MANDIS)
+
+  useEffect(() => {
+    fetch('/api/mandis/top?crop=Wheat&limit=3')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.mandis.length > 0) {
+          const mapped = data.mandis.map((m: Record<string, unknown>, i: number) => ({
+            name: m.name as string,
+            city: m.state as string,
+            crop: 'Wheat',
+            price: (m.modal_price as number) || 0,
+            trust: (m.trust_score as number) || 50,
+            direction: ((m.trust_score as number) > 75 ? 'up' : 'down') as 'up' | 'down',
+            rank: i + 1,
+          }))
+          setMandis(mapped)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

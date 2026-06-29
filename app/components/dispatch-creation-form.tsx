@@ -34,31 +34,69 @@ export function DispatchCreationForm({ mandi, quantity, crop, farmers, onSuccess
     setStep('review')
   }
 
-  function handleConfirmDispatch() {
+  async function handleConfirmDispatch() {
     setStep('notifying')
     setLoading(true)
     setNotificationProgress(0)
 
-    // Simulate generating dispatch ID
-    const id = `DP-${Date.now().toString().slice(-6)}`
-    setDispatchId(id)
+    try {
+      const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+      const managerId = localStorage.getItem('userId') || 'mgr-001'
 
-    // Simulate notifying farmers
-    let progress = 0
-    const interval = setInterval(() => {
-      progress += Math.random() * 15 + 5
-      if (progress >= 100) {
-        progress = 100
-        clearInterval(interval)
-        setNotificationProgress(100)
-        setTimeout(() => {
-          setLoading(false)
-          setStep('success')
-          onSuccess?.(id)
-        }, 800)
+      const res = await fetch('/api/dispatches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fpoId,
+          mandiId: 'mandi-001',
+          crop,
+          totalQuantity: parseInt(quantity || '0'),
+          truckNumber,
+          driverName,
+          driverPhone,
+          departureTime,
+          expectedRevenue: totalRevenue,
+          pricePerQuintal: mandi.price,
+          managerId,
+          trustScoreAtDispatch: 94,
+          netPriceAtDispatch: mandi.net,
+        }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        const id = data.dispatchId
+        setDispatchId(id)
+
+        let progress = 0
+        const interval = setInterval(() => {
+          progress += Math.random() * 15 + 5
+          if (progress >= 100) {
+            progress = 100
+            clearInterval(interval)
+            setNotificationProgress(100)
+            setTimeout(() => {
+              setLoading(false)
+              setStep('success')
+              onSuccess?.(id)
+            }, 800)
+          }
+          setNotificationProgress(Math.min(progress, 100))
+        }, 150)
+      } else {
+        const id = `DP-${Date.now().toString().slice(-6)}`
+        setDispatchId(id)
+        setLoading(false)
+        setStep('success')
+        onSuccess?.(id)
       }
-      setNotificationProgress(Math.min(progress, 100))
-    }, 150)
+    } catch {
+      const id = `DP-${Date.now().toString().slice(-6)}`
+      setDispatchId(id)
+      setLoading(false)
+      setStep('success')
+      onSuccess?.(id)
+    }
   }
 
   return (

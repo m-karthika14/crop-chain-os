@@ -73,6 +73,29 @@ export default function FarmerDashboard() {
         }
       })
       .catch(() => {})
+
+    fetch(`/api/harvests/my-harvests?farmerId=${farmerId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.harvests.length > 0) {
+          setHarvests(data.harvests.map((h: Record<string, unknown>) => ({
+            cropType: h.crop_type,
+            variety: h.variety || '',
+            grade: h.grade_submitted || 'A',
+            estimatedQty: parseFloat(h.quantity_estimated as string),
+            actualQty: h.quantity_actual ? parseFloat(h.quantity_actual as string) : undefined,
+            status: h.status,
+            tokenNumber: h.token_number,
+            timestamp: new Date(h.submitted_at as string).toLocaleString('en-IN'),
+            godownAddress: h.godown_address,
+            contact: h.godown_contact,
+            actualEarnings: h.quantity_final
+              ? `₹${(parseFloat(h.quantity_final as string) * 2200).toLocaleString('en-IN')} – ₹${(parseFloat(h.quantity_final as string) * 2400).toLocaleString('en-IN')}`
+              : undefined,
+          })))
+        }
+      })
+      .catch(() => {})
   }, [])
 
   // Animate earnings counter on mount
@@ -106,37 +129,7 @@ export default function FarmerDashboard() {
     { crop: 'Wheat', qty: '320Q', price: 2150, mandi: 'Karnal', date: '12 days ago', status: 'Paid' },
   ]
 
-  const harvests = [
-    {
-      cropType: 'Wheat',
-      variety: 'HD-2967',
-      grade: 'A',
-      estimatedQty: 8,
-      status: 'APPROVED' as const,
-      tokenNumber: 'GH-2025-0847',
-      timestamp: 'Today 9:15 AM',
-      godownAddress: 'GreenHarvest Godown, Near Karnal Bus Stand, Haryana',
-      contact: '+91 98765 43210',
-    },
-    {
-      cropType: 'Rice',
-      variety: 'Basmati',
-      grade: 'A',
-      estimatedQty: 12,
-      status: 'SUBMITTED' as const,
-      timestamp: 'Yesterday 2:30 PM',
-    },
-    {
-      cropType: 'Soybean',
-      variety: 'JS-20-98',
-      grade: 'B',
-      estimatedQty: 6.5,
-      status: 'GODOWN_RECEIVED' as const,
-      actualQty: 6.3,
-      timestamp: '2 days ago',
-      actualEarnings: '₹14,490 – ₹15,750',
-    },
-  ]
+  const [harvests, setHarvests] = useState<Record<string, unknown>[]>([])
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
@@ -382,7 +375,11 @@ export default function FarmerDashboard() {
                     </Link>
                   </div>
                   <div className="grid gap-4">
-                    {harvests.map((harvest, idx) => (
+                    {harvests.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 text-sm border border-white/5 rounded-xl">
+                        No harvests submitted yet
+                      </div>
+                    ) : harvests.map((harvest, idx) => (
                       <HarvestStatusCard
                         key={idx}
                         {...harvest}

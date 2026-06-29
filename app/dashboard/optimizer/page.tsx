@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import {
@@ -11,7 +11,7 @@ import {
 import { DispatchCreationForm } from '@/app/components/dispatch-creation-form'
 import Link from 'next/link'
 
-const CROPS = ['Wheat', 'Rice', 'Tomato', 'Onion']
+const CROPS = ['Wheat', 'Rice', 'Tomato', 'Onion', 'Potato']
 
 const MANDIS = [
   { rank: 1, name: 'Karnal', state: 'Haryana', price: 2387, transport: 148, commission: 36, net: 2203, trust: 94, payment: 'Same Day', tag: 'best' },
@@ -40,7 +40,18 @@ export default function OptimizerPage() {
   const router = useRouter()
   const [crop, setCrop] = useState('Wheat')
   const [qty, setQty] = useState('850')
-  const [location] = useState('Karnal, Haryana')
+  const [location, setLocation] = useState('Loading...')
+
+  useEffect(() => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    fetch(`/api/fpos/location?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.location) setLocation(data.location)
+        else setLocation('Karnal, Haryana')
+      })
+      .catch(() => setLocation('Karnal, Haryana'))
+  }, [])
   const [cropOpen, setCropOpen] = useState(false)
   const [phase, setPhase] = useState<'idle' | 'loading' | 'results'>('idle')
   const [progress, setProgress] = useState(0)
@@ -48,30 +59,72 @@ export default function OptimizerPage() {
   const [showDispatchForm, setShowDispatchForm] = useState(false)
   const [dispatchCreated, setDispatchCreated] = useState(false)
   const [selectedMandiName, setSelectedMandiName] = useState('Karnal')
+  const [mandis, setMandis] = useState(MANDIS)
+  const [aiInsight, setAiInsight] = useState<{
+    recommendedMandi: string
+    confidence: number
+    summary: string
+    reasons: string[]
+    aiUsed: boolean
+  } | null>(null)
 
-  function handleFind() {
+  async function handleFind() {
     setPhase('loading')
     setProgress(0)
+    setAiInsight(null)
+
     let p = 0
     const interval = setInterval(() => {
-      p += Math.random() * 22 + 8
-      if (p >= 100) { p = 100; clearInterval(interval); setTimeout(() => setPhase('results'), 200) }
-      setProgress(Math.min(p, 100))
-    }, 120)
+      p += Math.random() * 15 + 5
+      if (p >= 90) { clearInterval(interval) }
+      setProgress(Math.min(p, 90))
+    }, 100)
+
+    try {
+      const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+      const res = await fetch('/api/mandis/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ crop, quantityQ: parseInt(qty || '0'), fpoId }),
+      })
+      const data = await res.json()
+
+      clearInterval(interval)
+      setProgress(100)
+
+      if (data.success && data.mandis.length > 0) {
+        setMandis(data.mandis)
+        setSelectedMandiName(data.winner.name)
+        if (data.fpoLocation) setLocation(data.fpoLocation)
+      }
+      if (data.aiInsight) {
+        setAiInsight(data.aiInsight)
+      }
+    } catch {
+      clearInterval(interval)
+    }
+
+    setTimeout(() => setPhase('results'), 300)
   }
 
   function handleApprove() { setShowDispatchForm(true) }
+
+  const selectedMandiData = mandis.find(m => m.name === selectedMandiName) || mandis[0]
 
   function handleViewOnMap() {
     // Navigate to mandi map with selected mandi and zoom parameter
     router.push(`/dashboard/mandi-map?mandi=${selectedMandiName}&zoom=true`)
   }
 
-  const winner = MANDIS.find(m => m.name === selectedMandiName) || MANDIS[0]
+  const winner = mandis.find(m => m.name === selectedMandiName) || mandis[0]
   const totalRevenue = Math.round((winner.net) * parseInt(qty || '0'))
+  const secondBest = mandis.find(m => m.name !== winner.name)
+  const extraGain = secondBest
+    ? Math.round((winner.net - secondBest.net) * parseInt(qty || '0'))
+    : 0
 
   return (
-    <div className="p-6 space-y-6 min-h-full relative">
+    <div className="p-6 space-y-6 min-h-full relative pb-24">
       {/* Page header */}
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center">
@@ -217,8 +270,20 @@ export default function OptimizerPage() {
                       <Trophy className="w-5 h-5 text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-amber-400 uppercase tracking-widest font-bold">Recommended</p>
-                      <h3 className="text-xl font-bold text-white">Karnal Mandi, {winner.state}</h3>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] text-amber-400 uppercase tracking-widest font-bold">
+                          {aiInsight?.aiUsed ? '✨ Gemini Recommended' : 'Recommended'}
+                        </p>
+                        {aiInsight && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 font-semibold">
+                            {aiInsight.confidence}% confidence
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-xl font-bold text-white">{winner.name}, {winner.state}</h3>
+                      {aiInsight?.summary && (
+                        <p className="text-xs text-gray-400 mt-1 max-w-xs">{aiInsight.summary}</p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -250,8 +315,12 @@ export default function OptimizerPage() {
                     <ArrowRight className="w-4 h-4 text-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-emerald-400">+₹1,76,000 extra gain vs default mandi</p>
-                    <p className="text-xs text-gray-500">vs selling locally without optimization</p>
+                    <p className="text-sm font-bold text-emerald-400">
+                      {extraGain > 0 ? `+₹${extraGain.toLocaleString('en-IN')} extra gain vs next best mandi` : 'Best net price across all mandis'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {secondBest ? `vs ${secondBest.name} (₹${secondBest.net.toLocaleString('en-IN')}/q net)` : 'vs selling locally without optimization'}
+                    </p>
                   </div>
                 </div>
 
@@ -273,7 +342,7 @@ export default function OptimizerPage() {
                       className="overflow-hidden"
                     >
                       <ul className="space-y-1.5 pt-2 pb-1">
-                        {WHY.map((w, i) => (
+                        {(aiInsight?.reasons?.length ? aiInsight.reasons.map(r => ({ text: r })) : WHY).map((w, i) => (
                           <motion.li
                             key={i}
                             initial={{ opacity: 0, x: -8 }}
@@ -313,7 +382,7 @@ export default function OptimizerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {MANDIS.map((m, i) => {
+                    {mandis.map((m, i) => {
                       const meta = tagMeta[m.tag]
                       const Icon = meta.icon
                       return (
@@ -395,23 +464,78 @@ export default function OptimizerPage() {
         )}
       </AnimatePresence>
 
-      {/* Dispatch Creation Form */}
+      {/* Sticky dispatch bar — always visible when results are ready */}
+      <AnimatePresence>
+        {phase === 'results' && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.8 }}
+            className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between gap-4 px-6 py-3 bg-[#0D0D0D]/95 backdrop-blur-xl border-t border-emerald-500/20 shadow-[0_-8px_32px_rgba(0,0,0,0.5)]"
+          >
+            <div className="hidden sm:flex flex-col min-w-0">
+              <p className="text-xs text-gray-500 truncate">Selected</p>
+              <p className="text-sm font-bold text-white truncate">{selectedMandiName} Mandi</p>
+            </div>
+            <div className="flex items-center gap-3 ml-auto">
+              <button
+                onClick={handleViewOnMap}
+                className="flex items-center gap-2 glass border border-emerald-500/30 text-emerald-400 font-bold px-5 py-2.5 rounded-xl text-sm hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all duration-200 whitespace-nowrap"
+              >
+                <MapPin className="w-4 h-4" />
+                View on Map
+              </button>
+              <button
+                onClick={handleApprove}
+                className="flex items-center gap-2 shimmer-btn text-[#0A0A0A] font-bold px-6 py-2.5 rounded-xl text-sm hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-500/25 transition-all duration-200 whitespace-nowrap"
+              >
+                <Truck className="w-4 h-4" />
+                Approve &amp; Dispatch
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dispatch Creation Form — fixed modal overlay */}
       <AnimatePresence>
         {showDispatchForm && (
-          <DispatchCreationForm
-            mandi={MANDIS[0]}
-            quantity={qty}
-            crop={crop}
-            farmers={825}
-            onSuccess={(dispatchId) => {
-              setDispatchCreated(true)
-              setTimeout(() => {
-                setShowDispatchForm(false)
-                setPhase('idle')
-              }, 3000)
-            }}
-            onCancel={() => setShowDispatchForm(false)}
-          />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              onClick={() => setShowDispatchForm(false)}
+            />
+            {/* Form container */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 16 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            >
+              <DispatchCreationForm
+                mandi={selectedMandiData}
+                quantity={qty}
+                crop={crop}
+                farmers={825}
+                onSuccess={(dispatchId) => {
+                  setDispatchCreated(true)
+                  setTimeout(() => {
+                    setShowDispatchForm(false)
+                    setPhase('idle')
+                  }, 3000)
+                }}
+                onCancel={() => setShowDispatchForm(false)}
+              />
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

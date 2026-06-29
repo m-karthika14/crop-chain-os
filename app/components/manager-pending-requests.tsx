@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Loader2, Eye, MessageSquare } from 'lucide-react'
 
@@ -57,6 +57,15 @@ const defaultRequests: PendingRequest[] = [
   },
 ]
 
+function getTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return mins + ' mins ago'
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return hrs + ' hours ago'
+  return Math.floor(hrs / 24) + ' days ago'
+}
+
 export function ManagerPendingRequests({ requests = defaultRequests }: ManagerPendingRequestsProps) {
   const [items, setItems] = useState(requests)
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -64,30 +73,82 @@ export function ManagerPendingRequests({ requests = defaultRequests }: ManagerPe
   const [selectedReason, setSelectedReason] = useState('')
   const [managerNote, setManagerNote] = useState<{ [key: string]: string }>({})
 
+  useEffect(() => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    fetch(`/api/harvests/pending?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.pending) {
+          const mapped = data.pending.map((h: Record<string, unknown>) => ({
+            id: h.id as string,
+            farmer: h.farmer_name as string,
+            village: h.farmer_village as string,
+            cropType: h.crop_type as string,
+            variety: (h.variety as string) || '-',
+            grade: (h.grade_submitted as string) || 'A',
+            estimatedQty: parseFloat(h.quantity_estimated as string),
+            submittedAt: h.submitted_at as string,
+            timeAgo: getTimeAgo(h.submitted_at as string),
+          }))
+          setItems(mapped)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const handleApprove = async (id: string) => {
     setLoadingId(id)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    const request = items.find(r => r.id === id)
-    if (request) {
-      // Mock token generation
-      const token = `GH-2025-${Math.floor(1000 + Math.random() * 9000)}`
-      console.log(`Approved token: ${token}`)
+    try {
+      const managerId = localStorage.getItem('userId') || 'mgr-001'
+      const res = await fetch(`/api/harvests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'approve',
+          managerId,
+          managerNote: managerNote[id] || '',
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setItems(prev => prev.filter(r => r.id !== id))
+        if (data.tokenNumber) {
+          alert(`✅ Approved! Token sent to farmer: ${data.tokenNumber}`)
+        }
+      } else {
+        alert(data.error || 'Failed to approve')
+      }
+    } catch {
+      alert('Something went wrong')
+    } finally {
+      setLoadingId(null)
     }
-    
-    setItems(items.filter(r => r.id !== id))
-    setLoadingId(null)
   }
 
   const handleReject = async (id: string) => {
     if (!selectedReason) return
     setRejectingId(id)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setItems(items.filter(r => r.id !== id))
-    setRejectingId(null)
-    setSelectedReason('')
+    try {
+      const res = await fetch(`/api/harvests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reject',
+          rejectionReason: selectedReason,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setItems(prev => prev.filter(r => r.id !== id))
+        setSelectedReason('')
+      } else {
+        alert(data.error || 'Failed to reject')
+      }
+    } catch {
+      alert('Something went wrong')
+    } finally {
+      setRejectingId(null)
+    }
   }
 
   if (items.length === 0) {
@@ -166,18 +227,6 @@ export function ManagerPendingRequests({ requests = defaultRequests }: ManagerPe
                   <p className="text-white font-medium">{request.estimatedQty}Q</p>
                 </div>
               </div>
-            </div>
-
-            {/* Manager Note */}
-            <div>
-              <label className="text-xs text-gray-400 uppercase mb-2 block">Manager Note (optional)</label>
-              <textarea
-                placeholder="Type note to farmer..."
-                value={managerNote[request.id] || ''}
-                onChange={(e) => setManagerNote({ ...managerNote, [request.id]: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-white/[0.05] border border-white/10 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-emerald-500 resize-none"
-                rows={2}
-              />
             </div>
 
             {/* Action Buttons */}

@@ -85,10 +85,35 @@ export function HarvestWizard() {
 
   const handleSubmit = async () => {
     setLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    dispatch({ type: 'SUBMIT' })
-    setLoading(false)
+    try {
+      const farmerId = localStorage.getItem('userId') || ''
+      const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+
+      const res = await fetch('/api/harvests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmerId,
+          fpoId,
+          cropType: state.cropType,
+          variety: state.variety,
+          grade: state.grade,
+          quantityEstimated: state.quantity,
+          moisture: state.moisture,
+          notes: '',
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        dispatch({ type: 'SUBMIT' })
+      } else {
+        alert(data.error || 'Failed to submit. Try again.')
+      }
+    } catch {
+      alert('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const canProceedStep1 = state.cropType && state.grade !== null
