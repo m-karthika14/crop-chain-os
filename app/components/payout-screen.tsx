@@ -2,55 +2,79 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, TrendingUp, Users, Wallet, ArrowDownRight, Download, Share2 } from 'lucide-react'
+import {
+  CheckCircle2, TrendingUp, Users, Wallet, ArrowDownRight,
+  Clock, ChevronDown, ChevronUp, AlertCircle,
+} from 'lucide-react'
 
 interface PayoutRow {
-  id: string
-  farmer_id: string
-  farmer_name: string
-  quantity_q: number
-  share_pct: number
-  net_amount: number
-  payment_status: string
-  paid_at: string | null
+  id:             string
+  farmer_id:      string
+  farmer_name:    string
+  quantity_q:     number
+  share_pct:      number
+  net_amount:     number
+  payment_status: string   // 'PENDING' | 'PAID' | 'ESTIMATED'
+  paid_at:        string | null
 }
 
 interface DispatchRow {
-  id: string
-  crop: string
-  total_quantity: number
-  actual_revenue: number
+  id:               string
+  crop:             string
+  total_quantity:   number
+  actual_revenue:   number
   expected_revenue: number
   price_per_quintal: number
-  mandi_name: string
-  mandi_state: string
-  truck_number: string
-  current_stage: number
+  mandi_name:       string
+  mandi_state:      string
+  truck_number:     string
+  current_stage:    number
   [key: string]: unknown
 }
 
 interface PayoutScreenProps {
   dispatchId: string
-  onBack: () => void
+  onBack:     () => void
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'PAID') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+        <CheckCircle2 className="w-2.5 h-2.5" /> Paid
+      </span>
+    )
+  }
+  if (status === 'ESTIMATED') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+        <AlertCircle className="w-2.5 h-2.5" /> Estimated
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+      <Clock className="w-2.5 h-2.5" /> Pending
+    </span>
+  )
 }
 
 export function PayoutScreen({ dispatchId, onBack }: PayoutScreenProps) {
-  const [loading, setLoading] = useState(true)
-  const [dispatch, setDispatch] = useState<DispatchRow | null>(null)
-  const [payouts, setPayouts] = useState<PayoutRow[]>([])
-  const [showDetails, setShowDetails] = useState(false)
+  const [loading,   setLoading]   = useState(true)
+  const [dispatch,  setDispatch]  = useState<DispatchRow | null>(null)
+  const [payouts,   setPayouts]   = useState<PayoutRow[]>([])
+  const [estimated, setEstimated] = useState(false)
+  const [showAll,   setShowAll]   = useState(false)
 
   useEffect(() => {
-    if (!dispatchId) {
-      setLoading(false)
-      return
-    }
+    if (!dispatchId) { setLoading(false); return }
     fetch(`/api/payouts/dispatch?dispatchId=${dispatchId}`)
       .then(r => r.json())
       .then(data => {
         if (data.success) {
           setDispatch(data.dispatch as DispatchRow)
-          setPayouts(data.payouts as PayoutRow[])
+          setPayouts(data.payouts  as PayoutRow[])
+          setEstimated(Boolean(data.estimated))
         }
       })
       .catch(() => {})
@@ -63,18 +87,19 @@ export function PayoutScreen({ dispatchId, onBack }: PayoutScreenProps) {
         <div className="relative">
           <div className="w-16 h-16 rounded-full border-2 border-emerald-500/20" />
           <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-          <div className="absolute inset-2 w-12 h-12 rounded-full bg-emerald-500/10 animate-pulse" />
         </div>
-        <p className="text-emerald-400 font-semibold text-sm">Calculating payouts...</p>
+        <p className="text-emerald-400 font-semibold text-sm">Loading payout data…</p>
       </div>
     )
   }
 
   const actualRevenue = dispatch ? Number(dispatch.actual_revenue) || 0 : 0
-  const fpoCut = actualRevenue * 0.02
-  const farmerTotal = actualRevenue * 0.98
-  const avgPerFarmer = payouts.length > 0 ? farmerTotal / payouts.length : 0
-  const sorted = [...payouts].sort((a, b) => Number(b.net_amount) - Number(a.net_amount))
+  const fpoCut        = actualRevenue * 0.02
+  const farmerTotal   = actualRevenue * 0.98
+  const avgPerFarmer  = payouts.length > 0 ? farmerTotal / payouts.length : 0
+  const sorted        = [...payouts].sort((a, b) => Number(b.net_amount) - Number(a.net_amount))
+  const top5          = sorted.slice(0, 5)
+  const rest          = sorted.slice(5)
 
   return (
     <motion.div
@@ -84,226 +109,287 @@ export function PayoutScreen({ dispatchId, onBack }: PayoutScreenProps) {
       style={{ backgroundColor: '#0A0F0A' }}
     >
       <div className="max-w-5xl mx-auto space-y-6">
+
         {/* Header */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="flex items-center justify-between gap-4 flex-wrap"
+          className="flex items-start justify-between gap-4 flex-wrap"
         >
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
-              Sale Complete &amp; Payouts Calculated
-            </h1>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h1 className="text-2xl md:text-3xl font-bold text-white">
+                {estimated ? 'Estimated Farmer Payouts' : 'Sale Complete — Payouts Ready'}
+              </h1>
+              {estimated && (
+                <span className="text-xs font-semibold px-2 py-1 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> Estimates
+                </span>
+              )}
+            </div>
             <p className="text-gray-400 text-sm">
               {dispatch
-                ? `${dispatch.mandi_name}, ${dispatch.mandi_state} — ${dispatch.crop}`
-                : 'Loading dispatch details...'}
+                ? `${dispatch.truck_number} · ${dispatch.mandi_name}, ${dispatch.mandi_state} · ${dispatch.crop}`
+                : 'Loading dispatch details…'}
             </p>
+            {estimated && (
+              <p className="text-amber-400/70 text-xs mt-1">
+                Based on each farmer&apos;s harvest contribution — amounts will be confirmed after sale is recorded.
+              </p>
+            )}
           </div>
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-            className="w-14 h-14 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center shrink-0"
+            className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 border-2 ${
+              estimated
+                ? 'border-amber-500 bg-amber-500/10'
+                : 'border-emerald-500 bg-emerald-500/10'
+            }`}
           >
-            <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+            {estimated
+              ? <AlertCircle className="w-7 h-7 text-amber-400" />
+              : <CheckCircle2 className="w-7 h-7 text-emerald-400" />}
           </motion.div>
         </motion.div>
 
-        {/* Stat cards */}
+        {/* KPI cards */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-4"
+          className="grid grid-cols-2 md:grid-cols-4 gap-4"
         >
-          <div className="p-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs uppercase text-gray-500 font-semibold">Total Revenue</span>
-              <TrendingUp className="w-5 h-5 text-emerald-400" />
-            </div>
-            <p className="text-3xl font-bold text-emerald-400">
-              ₹{actualRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">
-              {dispatch?.price_per_quintal ? `At ₹${Number(dispatch.price_per_quintal).toLocaleString('en-IN')}/quintal` : 'Final sale amount'}
-            </p>
-          </div>
-
-          <div className="p-6 rounded-2xl border border-amber-500/30 bg-amber-500/5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs uppercase text-gray-500 font-semibold">FPO Commission (2%)</span>
-              <Wallet className="w-5 h-5 text-amber-400" />
-            </div>
-            <p className="text-3xl font-bold text-amber-400">
-              ₹{fpoCut.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">Operational &amp; logistics</p>
-          </div>
-
-          <div className="p-6 rounded-2xl border border-blue-500/30 bg-blue-500/5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs uppercase text-gray-500 font-semibold">Farmer Distribution</span>
-              <Users className="w-5 h-5 text-blue-400" />
-            </div>
-            <p className="text-3xl font-bold text-blue-400">
-              ₹{farmerTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">To {payouts.length} farmers</p>
-          </div>
-
-          <div className="p-6 rounded-2xl border border-purple-500/30 bg-purple-500/5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs uppercase text-gray-500 font-semibold">Avg Per Farmer</span>
-              <ArrowDownRight className="w-5 h-5 text-purple-400" />
-            </div>
-            <p className="text-3xl font-bold text-purple-400">
-              ₹{avgPerFarmer.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">Based on quantities</p>
-          </div>
+          {([
+            {
+              label: estimated ? 'Expected Revenue' : 'Total Revenue',
+              value: `₹${actualRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+              sub:   dispatch?.price_per_quintal
+                       ? `At ₹${Number(dispatch.price_per_quintal).toLocaleString('en-IN')}/quintal`
+                       : estimated ? 'Projected amount' : 'Final sale',
+              color: 'emerald' as const,
+              Icon:  TrendingUp,
+            },
+            {
+              label: 'FPO Commission (2%)',
+              value: `₹${fpoCut.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+              sub:   'Operational & logistics',
+              color: 'amber' as const,
+              Icon:  Wallet,
+            },
+            {
+              label: 'Farmer Distribution',
+              value: `₹${farmerTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+              sub:   `To ${payouts.length} farmer${payouts.length !== 1 ? 's' : ''}`,
+              color: 'blue' as const,
+              Icon:  Users,
+            },
+            {
+              label: 'Avg Per Farmer',
+              value: `₹${avgPerFarmer.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+              sub:   'Based on quantity contributed',
+              color: 'purple' as const,
+              Icon:  ArrowDownRight,
+            },
+          ] as const).map(({ label, value, sub, color, Icon }) => {
+            const colorMap = {
+              emerald: { border: 'border-emerald-500/30', bg: 'bg-emerald-500/5', text: 'text-emerald-400' },
+              amber:   { border: 'border-amber-500/30',   bg: 'bg-amber-500/5',   text: 'text-amber-400' },
+              blue:    { border: 'border-blue-500/30',    bg: 'bg-blue-500/5',    text: 'text-blue-400' },
+              purple:  { border: 'border-purple-500/30',  bg: 'bg-purple-500/5',  text: 'text-purple-400' },
+            }
+            const c = colorMap[color]
+            return (
+              <div key={label} className={`p-5 rounded-2xl border ${c.border} ${c.bg}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs uppercase text-gray-500 font-semibold leading-tight">{label}</span>
+                  <Icon className={`w-4 h-4 ${c.text} shrink-0`} />
+                </div>
+                <p className={`text-2xl font-bold ${c.text}`}>{value}</p>
+                <p className="text-xs text-gray-500 mt-1">{sub}</p>
+              </div>
+            )
+          })}
         </motion.div>
 
-        {/* Stacked bar */}
+        {/* Revenue split bar */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
           className="p-6 rounded-2xl border border-white/10 bg-white/[0.02]"
         >
-          <h2 className="text-lg font-bold text-white mb-6">Revenue Breakdown</h2>
-          <div className="flex rounded-lg overflow-hidden h-12 mb-4">
+          <h2 className="text-base font-bold text-white mb-5">Revenue Split</h2>
+          <div className="flex rounded-lg overflow-hidden h-10 mb-3">
             <div
-              className="bg-emerald-500 flex items-center justify-center text-white text-xs font-bold transition-all"
-              style={{ width: `${actualRevenue > 0 ? 98 : 0}%` }}
+              className="bg-emerald-500 flex items-center justify-center text-black text-xs font-bold"
+              style={{ width: actualRevenue > 0 ? '98%' : '0%' }}
             >
               Farmers 98%
             </div>
             <div
-              className="bg-amber-500 flex items-center justify-center text-white text-xs font-bold transition-all"
-              style={{ width: `${actualRevenue > 0 ? 2 : 0}%` }}
-            >
-              FPO 2%
-            </div>
+              className="bg-amber-500 flex items-center justify-center text-black text-[10px] font-bold"
+              style={{ width: actualRevenue > 0 ? '2%' : '0%' }}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-8 text-sm">
-            <div>
-              <p className="text-gray-400 mb-1">Farmers ({payouts.length})</p>
-              <p className="text-xl font-bold text-emerald-400">98%</p>
-            </div>
-            <div>
-              <p className="text-gray-400 mb-1">FPO Commission</p>
-              <p className="text-xl font-bold text-amber-400">2%</p>
-            </div>
+          <div className="flex gap-6 text-sm">
+            <span className="text-gray-400 flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              Farmers — 98%
+            </span>
+            <span className="text-gray-400 flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" />
+              FPO Commission — 2%
+            </span>
           </div>
         </motion.div>
 
-        {/* Top Contributors */}
+        {/* Farmers table */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="p-6 rounded-2xl border border-white/10 bg-white/[0.02]"
+          className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden"
         >
-          <h2 className="text-lg font-bold text-white mb-6">Top Contributors</h2>
-          {sorted.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-4">No payout data yet</p>
-          ) : (
-            <div className="space-y-3">
-              {sorted.slice(0, 5).map((payout, idx) => (
-                <motion.div
-                  key={payout.id || idx}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + idx * 0.05 }}
-                  className="flex items-center justify-between p-4 rounded-lg border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-colors"
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                      <span className="text-sm font-bold text-emerald-400">{idx + 1}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-white truncate">{payout.farmer_name}</p>
-                      <p className="text-xs text-gray-500">{payout.quantity_q}q contributed</p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-bold text-emerald-400">
-                      ₹{Number(payout.net_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+          <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <h2 className="text-base font-bold text-white">Contributing Farmers</h2>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] text-gray-400 font-semibold">
+                {payouts.length}
+              </span>
             </div>
+            {estimated && (
+              <span className="text-xs text-amber-400/80 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Amounts are estimates until sale is confirmed
+              </span>
+            )}
+          </div>
+
+          {sorted.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-4xl mb-3">🌾</p>
+              <p className="text-gray-500 text-sm">No harvest contributions found for this dispatch crop.</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/[0.06]">
+                      {['#', 'Farmer', 'Quantity', 'Share', 'Amount', 'Status'].map(h => (
+                        <th key={h} className="px-5 py-3 text-left text-xs text-gray-600 font-medium uppercase tracking-wider whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top5.map((p, idx) => (
+                      <motion.tr
+                        key={p.id || idx}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.35 + idx * 0.05 }}
+                        className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                      >
+                        <td className="px-5 py-3.5 w-12">
+                          <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
+                            <span className="text-xs font-bold text-emerald-400">{idx + 1}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <p className="font-semibold text-white">{p.farmer_name}</p>
+                          <p className="text-xs text-gray-600 mt-0.5 font-mono">{p.farmer_id.slice(0, 8)}…</p>
+                        </td>
+                        <td className="px-5 py-3.5 text-gray-300">{Math.round(Number(p.quantity_q))}q</td>
+                        <td className="px-5 py-3.5 text-gray-400">{Number(p.share_pct).toFixed(1)}%</td>
+                        <td className="px-5 py-3.5">
+                          <span className="font-bold text-emerald-400">
+                            ₹{Number(p.net_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <StatusBadge status={p.payment_status} />
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Collapsible rest */}
+              {rest.length > 0 && (
+                <>
+                  <AnimatePresence>
+                    {showAll && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <table className="w-full text-sm">
+                          <tbody>
+                            {rest.map((p, idx) => (
+                              <tr
+                                key={p.id || idx}
+                                className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                              >
+                                <td className="px-5 py-3 w-12">
+                                  <div className="w-7 h-7 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+                                    <span className="text-xs font-bold text-gray-500">{idx + 6}</span>
+                                  </div>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <p className="font-semibold text-white">{p.farmer_name}</p>
+                                  <p className="text-xs text-gray-600 font-mono">{p.farmer_id.slice(0, 8)}…</p>
+                                </td>
+                                <td className="px-5 py-3 text-gray-300">{Math.round(Number(p.quantity_q))}q</td>
+                                <td className="px-5 py-3 text-gray-400">{Number(p.share_pct).toFixed(1)}%</td>
+                                <td className="px-5 py-3">
+                                  <span className="font-bold text-emerald-400">
+                                    ₹{Number(p.net_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <StatusBadge status={p.payment_status} />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <button
+                    onClick={() => setShowAll(v => !v)}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 border-t border-white/[0.06] text-sm text-gray-500 hover:text-gray-300 hover:bg-white/[0.02] transition-colors"
+                  >
+                    {showAll
+                      ? <><ChevronUp className="w-4 h-4" /> Collapse</>
+                      : <><ChevronDown className="w-4 h-4" /> Show {rest.length} more farmers</>}
+                  </button>
+                </>
+              )}
+            </>
           )}
         </motion.div>
 
-        {/* All Farmers expandable */}
+        {/* Back button */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="p-6 rounded-2xl border border-white/10 bg-white/[0.02]"
+          transition={{ delay: 0.45 }}
         >
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="w-full flex items-center justify-between mb-2"
-          >
-            <h2 className="text-lg font-bold text-white">All {payouts.length} Farmers</h2>
-            <span className={`text-gray-400 text-lg transition-transform ${showDetails ? 'rotate-180' : ''}`}>
-              &#8964;
-            </span>
-          </button>
-
-          <AnimatePresence>
-            {showDetails && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="space-y-2 mt-4 max-h-80 overflow-y-auto"
-              >
-                {sorted.map((payout, idx) => (
-                  <div
-                    key={payout.id || idx}
-                    className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/[0.01]"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-white">{payout.farmer_name}</p>
-                      <p className="text-xs text-gray-500">{payout.quantity_q}q</p>
-                    </div>
-                    <p className="text-sm font-bold text-emerald-400">
-                      ₹{Number(payout.net_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Action buttons */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="flex flex-col sm:flex-row gap-4 pt-2"
-        >
-          <button className="flex-1 px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors font-medium flex items-center justify-center gap-2">
-            <Download className="w-4 h-4" />
-            Download Report
-          </button>
-          <button className="flex-1 px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors font-medium flex items-center justify-center gap-2">
-            <Share2 className="w-4 h-4" />
-            Share with Farmers
-          </button>
           <button
             onClick={onBack}
-            className="flex-1 px-6 py-3 rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 transition-colors font-bold flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-8 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 transition-colors font-bold text-black"
           >
-            Back to Dispatches
+            ← Back to Dispatches
           </button>
         </motion.div>
+
       </div>
     </motion.div>
   )

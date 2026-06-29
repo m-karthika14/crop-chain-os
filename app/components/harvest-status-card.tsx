@@ -13,6 +13,7 @@ interface HarvestStatusCardProps {
   status: HarvestStatus
   tokenNumber?: string
   actualQty?: number
+  share?: number
   timestamp: string
   godownAddress?: string
   contact?: string

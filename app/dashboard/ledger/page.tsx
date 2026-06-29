@@ -1,111 +1,116 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Lock, ShieldCheck, CheckCircle2 } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Lock, ShieldCheck, CheckCircle2, RefreshCw, Truck, Banknote } from 'lucide-react'
 
-type BadgeColor = 'emerald' | 'blue' | 'amber' | 'purple' | 'teal'
-
-interface LedgerEntry {
-  time: string
-  type: string
-  badge: BadgeColor
-  lines: string[]
-  eventId: string
+interface DispatchRow {
+  id:               string
+  truck_number:     string
+  crop:             string
+  total_quantity:   number
+  current_stage:    number
+  mandi_name:       string
+  mandi_state:      string
+  expected_revenue: number
+  actual_revenue:   number
+  departed_at:      string | null
+  sold_at:          string | null
+  created_at:       string
 }
 
-const ENTRIES: LedgerEntry[] = [
-  {
-    time: '14:21:33',
-    type: 'FARMER_PAID',
-    badge: 'emerald',
-    lines: ['825 UPI transfers executed', 'Total: ₹18,72,550'],
-    eventId: 'evt_a7f2c891',
-  },
-  {
-    time: '14:21:32',
-    type: 'PAYOUT_GENERATED',
-    badge: 'emerald',
-    lines: ['Payout calculation complete', '825 farmers | avg ₹22,697'],
-    eventId: 'evt_a7f2c890',
-  },
-  {
-    time: '14:20:15',
-    type: 'SALE_COMPLETED',
-    badge: 'blue',
-    lines: ['Wheat sold at Karnal Mandi', '850q @ ₹2,387 = ₹18,72,550'],
-    eventId: 'evt_a7f2c889',
-  },
-  {
-    time: '11:42:00',
-    type: 'TRUCK_DISPATCHED',
-    badge: 'amber',
-    lines: ['KA-01-AB-1234 departed', 'ETA: Karnal Mandi 2:00 PM'],
-    eventId: 'evt_a7f2c888',
-  },
-  {
-    time: '08:37:00',
-    type: 'SALE_APPROVED',
-    badge: 'blue',
-    lines: ['Manager: Karthika Reddy', 'Mandi: Karnal | Trust: 94'],
-    eventId: 'evt_a7f2c887',
-  },
-  {
-    time: '08:35:00',
-    type: 'OPTIMIZATION_RUN',
-    badge: 'purple',
-    lines: ['1,473 mandis analyzed', 'Winner: Karnal ₹2,387'],
-    eventId: 'evt_a7f2c886',
-  },
-  {
-    time: '08:12:00',
-    type: 'HARVEST_CREATED',
-    badge: 'teal',
-    lines: ['850 quintals wheat', '825 farmers contributing'],
-    eventId: 'evt_a7f2c885',
-  },
-]
-
-const BADGE_STYLES: Record<BadgeColor, { dot: string; text: string; border: string; bg: string }> = {
-  emerald: { dot: 'bg-emerald-400', text: 'text-emerald-400', border: 'border-emerald-500/25', bg: 'bg-emerald-500/10' },
-  blue:    { dot: 'bg-blue-400',    text: 'text-blue-400',    border: 'border-blue-500/25',    bg: 'bg-blue-500/10'    },
-  amber:   { dot: 'bg-amber-400',   text: 'text-amber-400',   border: 'border-amber-500/25',   bg: 'bg-amber-500/10'   },
-  purple:  { dot: 'bg-purple-400',  text: 'text-purple-400',  border: 'border-purple-500/25',  bg: 'bg-purple-500/10'  },
-  teal:    { dot: 'bg-teal-400',    text: 'text-teal-400',    border: 'border-teal-500/25',    bg: 'bg-teal-500/10'    },
+interface PayoutRow {
+  id:             string
+  farmer_id:      string
+  farmer_name:    string
+  farmer_village: string
+  dispatch_id:    string
+  crop:           string
+  truck_number:   string
+  mandi_name:     string
+  quantity_q:     number
+  share_pct:      number
+  net_amount:     number
+  payment_status: string
+  upi_id:         string | null
+  paid_at:        string | null
+  created_at:     string
 }
 
-const LEDGER_ROWS = [
-  { from: 'FPO_WALLET', to: 'FARMER_001', amount: '₹17,601' },
-  { from: 'FPO_WALLET', to: 'FARMER_002', amount: '₹26,402' },
-  { from: 'FPO_WALLET', to: 'FARMER_003', amount: '₹32,950' },
-  { from: 'FPO_WALLET', to: 'FARMER_004', amount: '₹22,001' },
-  { from: 'FPO_WALLET', to: 'FARMER_005', amount: '₹39,601' },
-  { from: 'MANDI_ESCROW', to: 'FPO_WALLET', amount: '₹18,72,550' },
-]
-
-function HashBadge({ id }: { id: string }) {
-  return (
-    <span className="font-mono text-[10px] text-gray-600 bg-white/[0.04] border border-white/[0.08] px-2 py-0.5 rounded-md tracking-tight">
-      {id}
-    </span>
-  )
+function fmtDate(iso: string | null) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
 }
+function fmtMoney(v: number | string | null) {
+  const n = parseFloat(String(v || 0))
+  if (!n) return '—'
+  return '₹' + Math.round(n).toLocaleString('en-IN')
+}
+
+const STAGE_LABELS: Record<number, string> = {
+  0: '🌾 Harvest', 1: '📦 Loading', 2: '🚛 Transit',
+  3: '📍 Arrived', 4: '🏪 Sold',    5: '💰 Paid',
+}
+
+type Tab = 'dispatches' | 'payments'
 
 export default function LedgerPage() {
-  const [visible, setVisible] = useState(0)
+  const [tab,        setTab]        = useState<Tab>('dispatches')
+  const [dispatches, setDispatches] = useState<DispatchRow[]>([])
+  const [payouts,    setPayouts]    = useState<PayoutRow[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    let i = 0
-    const t = setInterval(() => {
-      i++
-      setVisible(i)
-      if (i >= ENTRIES.length) clearInterval(t)
-    }, 180)
-    return () => clearInterval(t)
+  const fetchAll = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
+    else        setRefreshing(true)
+
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+
+    const [diRes, pyRes] = await Promise.allSettled([
+      fetch(`/api/dispatches?fpoId=${fpoId}`).then(r => r.json()),
+      fetch(`/api/payouts/fpo?fpoId=${fpoId}`).then(r => r.json()),
+    ])
+
+    if (diRes.status === 'fulfilled' && diRes.value.success)
+      setDispatches(diRes.value.dispatches as DispatchRow[])
+
+    if (pyRes.status === 'fulfilled' && pyRes.value.success)
+      setPayouts(pyRes.value.payouts as PayoutRow[])
+
+    setLoading(false)
+    setRefreshing(false)
   }, [])
 
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  useEffect(() => {
+    const iv = setInterval(() => fetchAll(true), 30_000)
+    return () => clearInterval(iv)
+  }, [fetchAll])
+
+  const totalRevenue  = dispatches.reduce((s, d) => s + (parseFloat(String(d.actual_revenue)) || parseFloat(String(d.expected_revenue)) || 0), 0)
+  const paidPayouts   = payouts.filter(p => p.payment_status === 'PAID')
+  const totalPaid     = paidPayouts.reduce((s, p) => s + parseFloat(String(p.net_amount)), 0)
+  const uniqueFarmers = new Set(payouts.map(p => p.farmer_id)).size
+
+  if (loading) {
+    return (
+      <div className="min-h-full flex items-center justify-center" style={{ backgroundColor: '#0A0F0A' }}>
+        <div className="text-center space-y-3">
+          <div className="relative w-12 h-12 mx-auto">
+            <div className="absolute inset-0 rounded-full border-2 border-emerald-500/20" />
+            <div className="absolute inset-0 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+          </div>
+          <p className="text-emerald-400 text-sm font-semibold">Loading ledger…</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="p-6 space-y-8 min-h-full">
+    <div className="p-5 space-y-5 min-h-full" style={{ backgroundColor: '#0A0F0A' }}>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
@@ -114,121 +119,220 @@ export default function LedgerPage() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">Immutable Financial Ledger</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Every action is permanently recorded. Nothing can be changed.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Every action permanently recorded — nothing can be changed</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span className="text-xs text-emerald-400 font-medium">Cryptographically Sealed</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-xs text-emerald-400 font-medium">Tamper-Proof</span>
+          </div>
+          <button
+            onClick={() => fetchAll(true)}
+            className={`p-2 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] transition-colors ${refreshing ? 'text-emerald-400' : 'text-gray-500'}`}
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      {/* Timeline feed */}
-      <div className="relative">
-        {/* Vertical line */}
-        <div className="absolute left-[22px] top-2 bottom-2 w-px bg-gradient-to-b from-emerald-500/30 via-white/[0.06] to-transparent" />
-
-        <div className="space-y-3">
-          {ENTRIES.map((entry, i) => {
-            const style = BADGE_STYLES[entry.badge]
-            return (
-              <motion.div
-                key={entry.eventId}
-                initial={{ opacity: 0, x: -16 }}
-                animate={i < visible ? { opacity: 1, x: 0 } : { opacity: 0, x: -16 }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-                className="flex gap-4 items-start"
-              >
-                {/* Dot */}
-                <div className="relative shrink-0 mt-3.5">
-                  <div className={`w-3 h-3 rounded-full border-2 border-[#0A0A0A] ${style.dot} z-10 relative`} />
-                  {i === 0 && (
-                    <div className={`absolute inset-0 rounded-full ${style.dot} opacity-40 animate-ping`} />
-                  )}
-                </div>
-
-                {/* Card */}
-                <div className="flex-1 glass rounded-xl border border-white/[0.06] hover:border-white/[0.12] p-4 transition-colors duration-200 group">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-lg border ${style.text} ${style.bg} ${style.border}`}>
-                        {entry.type}
-                      </span>
-                      <HashBadge id={entry.eventId} />
-                    </div>
-                    <span className="font-mono text-xs text-gray-600 shrink-0">{entry.time}</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    {entry.lines.map((line, j) => (
-                      <p key={j} className="text-sm text-gray-400">{line}</p>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
+      {/* Stats bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Dispatches',   value: dispatches.length,                                     color: 'text-amber-400' },
+          { label: 'Revenue',      value: fmtMoney(totalRevenue),                                color: 'text-emerald-400' },
+          { label: 'Farmers Paid', value: `${paidPayouts.length}`,                               color: 'text-white' },
+          { label: 'Distributed',  value: fmtMoney(totalPaid),                                   color: 'text-emerald-400' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{label}</p>
+            <p className={`text-xl font-bold ${color}`}>{value || '—'}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Double-entry ledger table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={visible >= ENTRIES.length ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.5 }}
-        className="glass rounded-2xl border border-emerald-500/10 overflow-hidden"
-      >
-        <div className="px-6 py-4 border-b border-white/[0.06] flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <h3 className="text-sm font-semibold text-white">Double-Entry Accounting Ledger</h3>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 bg-white/[0.03] border border-white/[0.06] rounded-xl w-fit">
+        {([
+          { id: 'dispatches', label: 'Dispatches', icon: Truck },
+          { id: 'payments',   label: 'Payments',   icon: Banknote },
+        ] as { id: Tab; label: string; icon: typeof Truck }[]).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              tab === id ? 'bg-emerald-500 text-black' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm font-mono">
-            <thead>
-              <tr className="border-b border-white/[0.06]">
-                {['Debit Account', 'Credit Account', 'Amount', 'Balance Check'].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-xs text-gray-600 font-medium uppercase tracking-wider whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {LEDGER_ROWS.map((row, i) => (
-                <motion.tr
-                  key={i}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={visible >= ENTRIES.length ? { opacity: 1, x: 0 } : {}}
-                  transition={{ delay: i * 0.07, duration: 0.3 }}
-                  className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors duration-150"
-                >
-                  <td className="px-5 py-3 text-red-400/80 text-xs">{row.from}</td>
-                  <td className="px-5 py-3 text-emerald-400/80 text-xs">{row.to}</td>
-                  <td className="px-5 py-3 text-white font-bold text-xs">{row.amount}</td>
-                  <td className="px-5 py-3">
-                    <span className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <CheckCircle2 className="w-2.5 h-2.5" />
-                      Balanced
+      {/* Tab content */}
+      <AnimatePresence mode="wait">
+
+        {/* ── Dispatches ─────────────────────────────────────────────────── */}
+        {tab === 'dispatches' && (
+          <motion.div key="dispatches" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {dispatches.length === 0 ? (
+              <div className="text-center py-16 space-y-2">
+                <p className="text-4xl">🚛</p>
+                <p className="text-white font-semibold">No dispatches yet</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                  <p className="text-sm font-semibold text-white">{dispatches.length} dispatches</p>
+                  <p className="text-xs text-gray-600">Total revenue: {fmtMoney(totalRevenue)}</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/[0.06]">
+                        {['Date', 'Truck', 'Crop', 'Mandi', 'Qty', 'Revenue', 'Stage'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs text-gray-600 font-medium uppercase tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dispatches.map((d, i) => (
+                        <motion.tr
+                          key={d.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.04 }}
+                          className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]"
+                        >
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{fmtDate(d.created_at)}</td>
+                          <td className="px-4 py-3.5 text-amber-300 font-mono font-semibold">{d.truck_number}</td>
+                          <td className="px-4 py-3.5 text-gray-300">{d.crop}</td>
+                          <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap">
+                            {d.mandi_name}{d.mandi_state ? `, ${d.mandi_state}` : ''}
+                          </td>
+                          <td className="px-4 py-3.5 text-gray-400">{Math.round(Number(d.total_quantity))}q</td>
+                          <td className="px-4 py-3.5 font-bold text-emerald-400">
+                            {fmtMoney(Number(d.actual_revenue) || Number(d.expected_revenue))}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-gray-400">
+                              {STAGE_LABELS[d.current_stage] ?? `Stage ${d.current_stage}`}
+                            </span>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-5 py-3 border-t border-white/[0.06] flex items-center justify-between bg-white/[0.01]">
+                  <p className="text-xs text-gray-600">
+                    {dispatches.filter(d => d.current_stage >= 5).length} settled ·{' '}
+                    {dispatches.filter(d => d.current_stage < 5).length} in progress
+                  </p>
+                  <p className="text-sm font-bold text-emerald-400">{fmtMoney(totalRevenue)} total</p>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Payments ───────────────────────────────────────────────────── */}
+        {tab === 'payments' && (
+          <motion.div key="payments" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {payouts.length === 0 ? (
+              <div className="text-center py-16 space-y-2">
+                <p className="text-4xl">💸</p>
+                <p className="text-white font-semibold">No payments yet</p>
+                <p className="text-xs text-gray-500">Payments appear here once you process payouts.</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between flex-wrap gap-2">
+                  <p className="text-sm font-semibold text-white">
+                    {payouts.length} payments · {uniqueFarmers} farmers
+                  </p>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-emerald-400 font-semibold">
+                      ✅ {paidPayouts.length} paid · {fmtMoney(totalPaid)}
                     </span>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <span className="text-amber-400 font-semibold">
+                      ⏳ {payouts.length - paidPayouts.length} pending
+                    </span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/[0.06]">
+                        {['Date', 'Farmer', 'Crop', 'Truck', 'Mandi', 'Qty', 'Amount', 'UPI', 'Status'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs text-gray-600 font-medium uppercase tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payouts.map((p, i) => (
+                        <motion.tr
+                          key={p.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.03 }}
+                          className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]"
+                        >
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{fmtDate(p.paid_at || p.created_at)}</td>
+                          <td className="px-4 py-3.5">
+                            <p className="font-semibold text-white">{p.farmer_name}</p>
+                            {p.farmer_village && <p className="text-xs text-gray-600">{p.farmer_village}</p>}
+                          </td>
+                          <td className="px-4 py-3.5 text-gray-400">{p.crop}</td>
+                          <td className="px-4 py-3.5 text-amber-300 font-mono text-xs">{p.truck_number}</td>
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">{p.mandi_name}</td>
+                          <td className="px-4 py-3.5 text-gray-400">{Math.round(Number(p.quantity_q))}q</td>
+                          <td className="px-4 py-3.5 font-bold text-emerald-400">{fmtMoney(Number(p.net_amount))}</td>
+                          <td className="px-4 py-3.5 text-gray-600 font-mono text-xs">
+                            {p.upi_id ? `${p.upi_id.slice(0, 8)}…` : '—'}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {p.payment_status === 'PAID' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                <CheckCircle2 className="w-2.5 h-2.5" /> Paid
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                ⏳ {p.payment_status}
+                              </span>
+                            )}
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-5 py-3 border-t border-white/[0.06] flex items-center justify-between bg-white/[0.01]">
+                  <p className="text-xs text-gray-600">{uniqueFarmers} unique farmers</p>
+                  <p className="text-sm font-bold text-emerald-400">{fmtMoney(totalPaid)} distributed</p>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
 
-        {/* Sum row */}
+      </AnimatePresence>
+
+      {/* Verified footer */}
+      {(dispatches.length > 0 || payouts.length > 0) && (
         <motion.div
           initial={{ opacity: 0 }}
-          animate={visible >= ENTRIES.length ? { opacity: 1 } : {}}
-          transition={{ delay: 0.6 }}
-          className="px-5 py-4 border-t border-emerald-500/15 bg-emerald-500/[0.04] flex items-center gap-3"
+          animate={{ opacity: 1 }}
+          className="rounded-xl border border-emerald-500/10 px-5 py-3 flex items-center gap-3 bg-emerald-500/[0.03]"
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <p className="font-mono text-xs text-emerald-400">
-            SUM(debits) = SUM(credits) = ₹18,72,550
+            {dispatches.length} dispatches · {payouts.length} payments — all immutable
           </p>
           <span className="ml-auto text-xs text-emerald-500/60 font-mono">VERIFIED</span>
         </motion.div>
-      </motion.div>
+      )}
     </div>
   )
 }

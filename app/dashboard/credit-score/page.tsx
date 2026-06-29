@@ -1,79 +1,46 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Star, TrendingUp, Users, IndianRupee,
   CheckCircle2, Share2, ArrowUpRight, Landmark, HelpCircle, X,
-  BarChart3,
 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, BarChart, Bar,
+  Tooltip, ResponsiveContainer,
 } from 'recharts'
 
-const TARGET = 842
-const MAX = 900
+// Loaded client-only to avoid floating-point SSR/client mismatch in SVG arc math
+const GaugeChart = dynamic(() => import('./gauge-chart'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-60 h-[196px] flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+    </div>
+  ),
+})
 
-// Gauge arc helpers
-const CX = 120
-const CY = 108
-const R = 88
-const START_DEG = 210
-const END_DEG = 510  // 300° sweep
-
-function polarToXY(deg: number, r: number, cx: number, cy: number) {
-  const rad = ((deg - 90) * Math.PI) / 180
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
+interface Breakdown {
+  label:  string
+  score:  number
+  max:    number
+  detail: string
+  impact: string
 }
 
-function describeArc(startDeg: number, endDeg: number, r: number, cx: number, cy: number) {
-  const s = polarToXY(startDeg, r, cx, cy)
-  const e = polarToXY(endDeg, r, cx, cy)
-  const large = endDeg - startDeg > 180 ? 1 : 0
-  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`
+interface CreditData {
+  score:                 number
+  label:                 string
+  breakdown:             Breakdown[]
+  loan:                  { amount: string; working_capital: string; rate: string } | null
+  farmer_count:          number
+  completed_dispatches:  number
+  total_revenue:         number
+  paid_count:            number
+  grade_a_pct:           number
 }
-
-// Color zones (300–900 mapped onto 300° sweep)
-const ZONES = [
-  { from: 300, to: 500, color: '#EF4444' },
-  { from: 500, to: 650, color: '#F59E0B' },
-  { from: 650, to: 750, color: '#10B981' },
-  { from: 750, to: 900, color: '#F59E0B' }, // gold
-]
-
-function scoreToAngle(score: number) {
-  return START_DEG + ((score - 300) / (MAX - 300)) * 300
-}
-
-const HISTORY = [
-  { month: 'Jan', score: 680 },
-  { month: 'Feb', score: 710 },
-  { month: 'Mar', score: 740 },
-  { month: 'Apr', score: 790 },
-  { month: 'May', score: 820 },
-  { month: 'Jun', score: 842 },
-]
-
-const BREAKDOWN = [
-  { label: 'Revenue Consistency', score: 92, max: 100, detail: '47 sales, ₹2.3Cr settled', impact: '+18' },
-  { label: 'Settlement Reliability', score: 96, max: 100, detail: '0 defaults, avg 1.2 day payment', impact: '+12' },
-  { label: 'Farmer Retention', score: 88, max: 100, detail: '825 active farmers, 94% retention', impact: '+7' },
-  { label: 'Trade Volume', score: 91, max: 100, detail: '₹2.3Cr GMV last 6 months', impact: '+5' },
-]
-
-const NEGATIVES = [
-  { label: 'Delayed Dispatches', score: -4, detail: '2 shipments delayed > 4hrs' },
-]
-
-const BENCHMARK = [
-  { name: 'GreenHarvest', value: 842 },
-  { name: 'Industry Avg', value: 768 },
-  { name: 'Top District', value: 856 },
-  { name: 'State Avg', value: 789 },
-]
-
-const BANKS = ['NABARD', 'SBI Agri', 'HDFC Kisan']
 
 interface TooltipProps {
   active?: boolean
@@ -91,127 +58,101 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
   )
 }
 
+const MAX = 900
+
+function buildHistory(currentScore: number): { month: string; score: number }[] {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+  const growthPerMonth = Math.round((currentScore - 300) / 6)
+  return months.map((month, i) => ({
+    month,
+    score: Math.min(MAX, 300 + growthPerMonth * (i + 1)),
+  }))
+}
+
+const BANKS = ['NABARD', 'SBI Agri', 'HDFC Kisan']
+
 export default function CreditScorePage() {
-  const [displayScore, setDisplayScore] = useState(300)
-  const [barProgress, setBarProgress] = useState(0)
-  const [showExplain, setShowExplain] = useState(false)
-  const [showComparison, setShowComparison] = useState(false)
-  const rafRef = useRef<number | null>(null)
+  const [displayScore, setDisplayScore]       = useState(300)
+  const [barProgress,  setBarProgress]        = useState(0)
+  const [showExplain,  setShowExplain]        = useState(false)
+  const [showComparison, setShowComparison]   = useState(false)
+  const [data, setData]                       = useState<CreditData | null>(null)
+  const rafRef   = useRef<number | null>(null)
   const startRef = useRef<number | null>(null)
 
   useEffect(() => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    fetch(`/api/credit-score?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setData(d as CreditData) })
+      .catch(() => {})
+  }, [])
+
+  // Animate to real score once data arrives
+  useEffect(() => {
+    if (!data) return
+    const TARGET   = data.score
     const duration = 1800
+    startRef.current = null
     function animate(ts: number) {
       if (!startRef.current) startRef.current = ts
       const elapsed = ts - startRef.current
-      const pct = Math.min(elapsed / duration, 1)
-      // Ease out cubic
-      const eased = 1 - Math.pow(1 - pct, 3)
+      const pct     = Math.min(elapsed / duration, 1)
+      const eased   = 1 - Math.pow(1 - pct, 3)
       setDisplayScore(Math.round(300 + (TARGET - 300) * eased))
       setBarProgress(eased * 100)
       if (pct < 1) rafRef.current = requestAnimationFrame(animate)
     }
     rafRef.current = requestAnimationFrame(animate)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [])
+  }, [data])
 
-  const needleDeg = scoreToAngle(displayScore)
-  const needleXY = polarToXY(needleDeg, R - 12, CX, CY)
+  const history   = data ? buildHistory(data.score) : []
+  const startHistory = history[0]?.score ?? 300
+  const totalGain = data ? data.score - startHistory : 0
+
+  const revenueCr = data ? (data.total_revenue / 10000000).toFixed(2) : '0'
+
+  const benchmark = [
+    { name: 'Your FPO',     value: data?.score ?? 0,   isYou: true  },
+    { name: 'Industry Avg', value: 768,                  isYou: false },
+    { name: 'Top District', value: 856,                  isYou: false },
+    { name: 'State Avg',    value: 789,                  isYou: false },
+  ]
 
   return (
     <div className="p-6 space-y-8 min-h-full">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-          <Star className="w-4.5 h-4.5 text-amber-400" fill="currentColor" />
+          <Star className="w-4 h-4 text-amber-400" fill="currentColor" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-white">FPO Trust Index</h2>
-          <p className="text-xs text-gray-500 mt-0.5">GreenHarvest FPO &mdash; Operational Health & Reliability Score</p>
+          <p className="text-xs text-gray-500 mt-0.5">Operational Health &amp; Reliability Score — live from DB</p>
         </div>
+        {!data && (
+          <div className="ml-auto flex items-center gap-2 text-xs text-gray-500">
+            <div className="w-4 h-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+            Computing...
+          </div>
+        )}
       </div>
 
-      {/* Hero gauge + breakdown */}
+      {/* Gauge + breakdown */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* Gauge */}
         <div className="xl:col-span-2 glass rounded-2xl border border-amber-500/20 p-6 flex flex-col items-center justify-center relative overflow-hidden shadow-[0_0_60px_rgba(245,158,11,0.08)]">
           <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-amber-500/8 blur-3xl pointer-events-none" />
 
-          <svg width={CX * 2} height={CY + R + 24} className="overflow-visible mb-2">
-            {/* Background track */}
-            <path
-              d={describeArc(START_DEG, START_DEG + 300, R, CX, CY)}
-              fill="none"
-              stroke="rgba(255,255,255,0.05)"
-              strokeWidth={14}
-              strokeLinecap="round"
-            />
-
-            {/* Color zone arcs */}
-            {ZONES.map((zone) => {
-              const startA = scoreToAngle(zone.from)
-              const endA = scoreToAngle(zone.to)
-              return (
-                <path
-                  key={zone.from}
-                  d={describeArc(startA, endA, R, CX, CY)}
-                  fill="none"
-                  stroke={zone.color}
-                  strokeOpacity={0.18}
-                  strokeWidth={14}
-                  strokeLinecap="butt"
-                />
-              )
-            })}
-
-            {/* Animated progress arc */}
-            <path
-              d={describeArc(START_DEG, scoreToAngle(displayScore), R, CX, CY)}
-              fill="none"
-              stroke="url(#gaugeGrad)"
-              strokeWidth={14}
-              strokeLinecap="round"
-            />
-
-            <defs>
-              <linearGradient id="gaugeGrad" gradientUnits="userSpaceOnUse"
-                x1={polarToXY(START_DEG, R, CX, CY).x}
-                y1={polarToXY(START_DEG, R, CX, CY).y}
-                x2={polarToXY(START_DEG + 300, R, CX, CY).x}
-                y2={polarToXY(START_DEG + 300, R, CX, CY).y}
-              >
-                <stop offset="0%" stopColor="#F59E0B" />
-                <stop offset="60%" stopColor="#10B981" />
-                <stop offset="100%" stopColor="#F59E0B" />
-              </linearGradient>
-            </defs>
-
-            {/* Needle */}
-            <circle cx={needleXY.x} cy={needleXY.y} r={5} fill="#F59E0B" />
-            <circle cx={needleXY.x} cy={needleXY.y} r={8} fill="none" stroke="#F59E0B" strokeOpacity={0.3} strokeWidth={2} />
-
-            {/* Zone labels */}
-            {[
-              { score: 400, label: 'Poor' },
-              { score: 575, label: 'Fair' },
-              { score: 700, label: 'Good' },
-              { score: 825, label: 'Excellent' },
-            ].map(({ score, label }) => {
-              const p = polarToXY(scoreToAngle(score), R + 22, CX, CY)
-              return (
-                <text key={label} x={p.x} y={p.y} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.25)">{label}</text>
-              )
-            })}
-
-            {/* Centre text */}
-            <text x={CX} y={CY - 6} textAnchor="middle" fontSize={38} fontWeight={800} fill="white">{displayScore}</text>
-            <text x={CX} y={CY + 14} textAnchor="middle" fontSize={10} fill="rgba(255,255,255,0.4)">out of {MAX}</text>
-          </svg>
+          <GaugeChart displayScore={displayScore} />
 
           <div className="flex flex-col items-center gap-3">
             <div className="flex flex-col items-center gap-1">
-              <span className="text-xl font-extrabold text-amber-400 tracking-wider uppercase">Excellent Reliability</span>
-              <p className="text-xs text-gray-500">Last updated today</p>
+              <span className="text-xl font-extrabold text-amber-400 tracking-wider uppercase">
+                {data?.label ?? 'Computing'} Reliability
+              </span>
+              <p className="text-xs text-gray-500">Live from database</p>
             </div>
             <motion.button
               onClick={() => setShowExplain(true)}
@@ -226,7 +167,7 @@ export default function CreditScorePage() {
 
         {/* Breakdown cards */}
         <div className="xl:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {BREAKDOWN.map((b, i) => (
+          {(data?.breakdown ?? []).map((b, i) => (
             <motion.div
               key={b.label}
               initial={{ opacity: 0, y: 16 }}
@@ -236,25 +177,33 @@ export default function CreditScorePage() {
             >
               <div className="flex items-start justify-between mb-3">
                 <p className="text-xs text-gray-400 font-medium leading-snug max-w-[70%]">{b.label}</p>
-                <span className="text-lg font-extrabold text-emerald-400 shrink-0">{b.score}<span className="text-gray-600 text-xs font-normal">/{b.max}</span></span>
+                <span className="text-lg font-extrabold text-emerald-400 shrink-0">
+                  {b.score}<span className="text-gray-600 text-xs font-normal">/{b.max}</span>
+                </span>
               </div>
               <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden mb-2">
                 <motion.div
                   className="h-full rounded-full bg-emerald-500"
                   initial={{ width: 0 }}
-                  animate={{ width: `${barProgress * b.score / 100}%` }}
+                  animate={{ width: `${barProgress * b.score / b.max}%` }}
                   transition={{ duration: 0.05 }}
                 />
               </div>
               <p className="text-[11px] text-gray-600">{b.detail}</p>
             </motion.div>
           ))}
+          {!data && Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass rounded-xl border border-emerald-500/10 p-4 animate-pulse">
+              <div className="h-3 w-24 bg-white/10 rounded mb-3" />
+              <div className="h-1.5 rounded-full bg-white/[0.06] mb-2" />
+              <div className="h-2 w-32 bg-white/5 rounded" />
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Financing Profile + Comparison */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Financing Profile */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -264,25 +213,31 @@ export default function CreditScorePage() {
           <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-4">
-              <Landmark className="w-4.5 h-4.5 text-emerald-400" />
+              <Landmark className="w-4 h-4 text-emerald-400" />
               <p className="text-sm font-semibold text-white">Estimated Financing Profile</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-              {[
-                { label: 'Working Capital', value: '₹50,00,000', sub: 'Estimated range' },
-                { label: 'Term Loan', value: '₹1,20,00,000', sub: 'Up to 5 years' },
-                { label: 'Interest Rate', value: '8.5% p.a.', sub: 'Indicative' },
-              ].map(({ label, value, sub }) => (
-                <div key={label} className="bg-black/20 border border-white/[0.06] rounded-xl px-4 py-3">
-                  <p className="text-xs text-gray-600 mb-1">{label}</p>
-                  <p className="text-xl font-extrabold text-emerald-400">{value}</p>
-                  <p className="text-[11px] text-gray-600 mt-0.5">{sub}</p>
-                </div>
-              ))}
-            </div>
+            {data?.loan ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                {[
+                  { label: 'Working Capital', value: data.loan.working_capital, sub: 'Estimated range' },
+                  { label: 'Term Loan',       value: data.loan.amount,          sub: 'Up to 5 years'   },
+                  { label: 'Interest Rate',   value: `${data.loan.rate} p.a.`,  sub: 'Indicative'       },
+                ].map(({ label, value, sub }) => (
+                  <div key={label} className="bg-black/20 border border-white/[0.06] rounded-xl px-4 py-3">
+                    <p className="text-xs text-gray-600 mb-1">{label}</p>
+                    <p className="text-xl font-extrabold text-emerald-400">{value}</p>
+                    <p className="text-[11px] text-gray-600 mt-0.5">{sub}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mb-5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <p className="text-sm text-amber-400 font-semibold">Score below 500 — not yet eligible for loans</p>
+                <p className="text-xs text-gray-500 mt-1">Build your FPO by adding farmers, completing dispatches, and settling payouts to improve eligibility.</p>
+              </div>
+            )}
 
-            {/* Partner banks */}
             <div className="flex items-center gap-3 flex-wrap mb-4">
               <p className="text-xs text-gray-600">Network Banks:</p>
               {BANKS.map(bank => (
@@ -293,11 +248,11 @@ export default function CreditScorePage() {
             </div>
 
             <p className="text-[10px] text-gray-600 border-t border-white/10 pt-3 mt-3">
-              For demonstration purposes. Final lending decisions made by financial institutions. Contact banks directly for formal pre-qualification.
+              For demonstration purposes. Final lending decisions made by financial institutions.
             </p>
 
             <div className="flex items-center gap-3 flex-wrap mt-4">
-              <button className="flex items-center gap-2 shimmer-btn text-[#0A0A0A] font-bold text-sm px-6 py-2.5 rounded-xl hover:scale-[1.02] hover:shadow-lg hover:shadow-emerald-500/25 transition-all duration-200">
+              <button className="flex items-center gap-2 shimmer-btn text-[#0A0A0A] font-bold text-sm px-6 py-2.5 rounded-xl hover:scale-[1.02] transition-all duration-200">
                 <IndianRupee className="w-4 h-4" />
                 Apply for Working Capital
               </button>
@@ -309,7 +264,7 @@ export default function CreditScorePage() {
           </div>
         </motion.div>
 
-        {/* Comparison Panel */}
+        {/* Comparison */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -337,23 +292,20 @@ export default function CreditScorePage() {
                 exit={{ opacity: 0, height: 0 }}
                 className="space-y-3"
               >
-                {BENCHMARK.map((item) => {
-                  const isYou = item.name === 'GreenHarvest'
+                {benchmark.map(item => {
                   const percent = (item.value / 900) * 100
                   return (
                     <div key={item.name}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className={`text-xs font-semibold ${isYou ? 'text-emerald-400' : 'text-gray-400'}`}>
+                        <span className={`text-xs font-semibold ${item.isYou ? 'text-emerald-400' : 'text-gray-400'}`}>
                           {item.name}
-                          {isYou && <span className="ml-1 text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">You</span>}
+                          {item.isYou && <span className="ml-1 text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">You</span>}
                         </span>
-                        <span className={`text-sm font-bold ${isYou ? 'text-emerald-400' : 'text-gray-500'}`}>
-                          {item.value}
-                        </span>
+                        <span className={`text-sm font-bold ${item.isYou ? 'text-emerald-400' : 'text-gray-500'}`}>{item.value}</span>
                       </div>
                       <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
                         <motion.div
-                          className={`h-full rounded-full ${isYou ? 'bg-emerald-500' : 'bg-gray-600'}`}
+                          className={`h-full rounded-full ${item.isYou ? 'bg-emerald-500' : 'bg-gray-600'}`}
                           initial={{ width: 0 }}
                           animate={{ width: `${percent}%` }}
                           transition={{ delay: 0.1, duration: 0.6 }}
@@ -377,32 +329,30 @@ export default function CreditScorePage() {
       >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-sm font-semibold text-white">Score History</h3>
-            <p className="text-xs text-gray-500 mt-0.5">6-month credit score trajectory</p>
+            <h3 className="text-sm font-semibold text-white">Score Trajectory</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Simulated 6-month growth based on current score</p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full font-medium">
-            <TrendingUp className="w-3 h-3" />
-            +162 points in 6 months
-          </div>
+          {totalGain > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full font-medium">
+              <TrendingUp className="w-3 h-3" />
+              +{totalGain} pts in 6 months
+            </div>
+          )}
         </div>
 
         <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={HISTORY} margin={{ top: 4, right: 12, bottom: 0, left: -18 }}>
+          <LineChart data={history} margin={{ top: 4, right: 12, bottom: 0, left: -18 }}>
             <defs>
               <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#F59E0B" />
+                <stop offset="0%"   stopColor="#F59E0B" />
                 <stop offset="100%" stopColor="#10B981" />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
             <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis domain={[620, 880]} tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis domain={[300, 900]} tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} />
-            <Line
-              type="monotone"
-              dataKey="score"
-              stroke="url(#lineGrad)"
-              strokeWidth={2.5}
+            <Line type="monotone" dataKey="score" stroke="url(#lineGrad)" strokeWidth={2.5}
               dot={{ fill: '#10B981', strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, fill: '#F59E0B' }}
             />
@@ -410,13 +360,13 @@ export default function CreditScorePage() {
         </ResponsiveContainer>
       </motion.div>
 
-      {/* Bottom info cards */}
+      {/* Bottom stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Active Farmers', value: '825', icon: Users, color: 'text-emerald-400' },
-          { label: 'GMV (6 months)', value: '₹2.3Cr', icon: TrendingUp, color: 'text-emerald-400' },
-          { label: 'Retention Rate', value: '94%', icon: CheckCircle2, color: 'text-emerald-400' },
-          { label: 'Avg Settlement', value: '1.2 days', icon: ArrowUpRight, color: 'text-amber-400' },
+          { label: 'Active Farmers',  value: data ? String(data.farmer_count)            : '—', icon: Users,        color: 'text-emerald-400' },
+          { label: 'Total Revenue',   value: data ? `₹${revenueCr}Cr`                    : '—', icon: TrendingUp,   color: 'text-emerald-400' },
+          { label: 'Payouts Made',    value: data ? String(data.paid_count)               : '—', icon: CheckCircle2, color: 'text-emerald-400' },
+          { label: 'Grade-A Harvest', value: data ? `${Math.round(data.grade_a_pct)}%`   : '—', icon: ArrowUpRight, color: 'text-amber-400'   },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="glass rounded-xl border border-emerald-500/10 px-4 py-3.5">
             <div className="flex items-center gap-2 mb-1.5">
@@ -428,7 +378,7 @@ export default function CreditScorePage() {
         ))}
       </div>
 
-      {/* Explain Score Modal */}
+      {/* Explain modal */}
       <AnimatePresence>
         {showExplain && (
           <motion.div
@@ -442,27 +392,24 @@ export default function CreditScorePage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
               className="bg-[#0A0A0A] border border-emerald-500/20 rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-bold text-white">How Your Trust Index is Calculated</h3>
-                <button
-                  onClick={() => setShowExplain(false)}
-                  className="text-gray-500 hover:text-white transition-colors"
-                >
+                <button onClick={() => setShowExplain(false)} className="text-gray-500 hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <p className="text-3xl font-black text-emerald-400">842</p>
-                <p className="text-xs text-gray-500 mt-1">Current Trust Index</p>
+                <p className="text-3xl font-black text-emerald-400">{data?.score ?? '—'}</p>
+                <p className="text-xs text-gray-500 mt-1">Current Trust Index (base 400 + components)</p>
               </div>
 
               <div className="space-y-3 mb-6">
-                <p className="text-xs font-semibold text-gray-400 uppercase">Positive Factors</p>
-                {BREAKDOWN.map((item) => (
+                <p className="text-xs font-semibold text-gray-400 uppercase">Score Components</p>
+                {(data?.breakdown ?? []).map(item => (
                   <div key={item.label} className="flex items-start justify-between p-3 rounded-lg bg-emerald-500/[0.06] border border-emerald-500/10">
                     <div className="flex-1">
                       <p className="text-sm text-white font-medium">{item.label}</p>
@@ -473,22 +420,9 @@ export default function CreditScorePage() {
                 ))}
               </div>
 
-              <div className="space-y-3 mb-6">
-                <p className="text-xs font-semibold text-gray-400 uppercase">Areas for Improvement</p>
-                {NEGATIVES.map((item) => (
-                  <div key={item.label} className="flex items-start justify-between p-3 rounded-lg bg-amber-500/[0.06] border border-amber-500/10">
-                    <div className="flex-1">
-                      <p className="text-sm text-white font-medium">{item.label}</p>
-                      <p className="text-xs text-gray-600 mt-0.5">{item.detail}</p>
-                    </div>
-                    <span className="text-amber-400 font-bold text-sm ml-2 shrink-0">{item.score}</span>
-                  </div>
-                ))}
-              </div>
-
               <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
                 <p className="text-xs text-gray-400">
-                  <span className="font-semibold text-white">How to improve?</span> Complete all settlements on time, retain more farmers, and maintain consistent sales volume.
+                  <span className="font-semibold text-white">How to improve?</span> Add more farmers, complete dispatches, settle payouts promptly, and maintain Grade-A harvest quality.
                 </p>
               </div>
 

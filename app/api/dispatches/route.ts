@@ -13,12 +13,12 @@ export async function GET(req: NextRequest) {
     const result = await db.query(
       `SELECT
          d.*,
-         m.name as mandi_name,
-         m.state as mandi_state,
-         m.lat as mandi_lat,
-         m.lng as mandi_lng
+         COALESCE(m.name,  d.mandi_id)  as mandi_name,
+         COALESCE(m.state, '')          as mandi_state,
+         m.lat                          as mandi_lat,
+         m.lng                          as mandi_lng
        FROM dispatches d
-       JOIN mandis m ON m.id = d.mandi_id
+       LEFT JOIN mandis m ON m.id = d.mandi_id
        WHERE d.fpo_id = $1
        ORDER BY d.created_at DESC`,
       [fpoId]
@@ -63,13 +63,13 @@ export async function POST(req: NextRequest) {
     await db.query(
       `INSERT INTO dispatches
          (id, fpo_id, mandi_id, crop, total_quantity,
-          truck_number, driver_name, driver_phone,
+          truck_number, driver_name,
           departed_at, eta, current_stage,
           expected_revenue, price_per_quintal, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,1,$11,$12,NOW())`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10,$11,NOW())`,
       [
         dispatchId, fpoId, mandiId, crop, totalQuantity,
-        truckNumber || null, driverName || null, driverPhone || null,
+        truckNumber || null, driverName || null,
         departedAt.toISOString(), eta.toISOString(),
         expectedRevenue || null, pricePerQuintal || null,
       ]

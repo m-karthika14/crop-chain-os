@@ -4,38 +4,52 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Banknote } from 'lucide-react'
 
-const DEFAULT_PAYOUTS = [
-  'Ramu Patil received ₹12,400 — Wheat, Azadpur Mandi',
-  'Sunita Devi received ₹8,200 — Onion, Koyambedu',
-  'Ganesh Yadav received ₹19,500 — Soybean, Gultekdi',
-  'Parvati Bai received ₹6,750 — Tomato, Vashi APMC',
-  'Kishan Lal received ₹14,100 — Maize, Bowenpally',
-  'Meena Kumari received ₹9,300 — Paddy, Yeshwanthpur',
-  'Arun Patil received ₹11,200 — Wheat, Azadpur Mandi',
-  'Bhima Rao received ₹7,650 — Cotton, Guntur APMC',
+const FALLBACK = [
+  'Waiting for first payout to be recorded...',
+  'Complete a dispatch and mark it sold to see live payouts here',
 ]
 
+interface PayoutRow {
+  net_amount:  number
+  farmer_name: string
+  crop:        string
+  mandi_name:  string
+}
+
+function fmtPayout(row: PayoutRow): string {
+  const amt   = `₹${Math.round(row.net_amount).toLocaleString('en-IN')}`
+  const mandi = (row.mandi_name ?? '').split(' ')[0] || 'Mandi'
+  return `${row.farmer_name} received ${amt} — ${row.crop}, ${mandi} Mandi`
+}
+
 export function LiveTicker() {
-  const [prices, setPrices] = useState(DEFAULT_PAYOUTS)
+  const [items, setItems] = useState<string[]>(FALLBACK)
 
   useEffect(() => {
-    fetch('/api/mandis?crop=Wheat')
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    fetch(`/api/payouts/recent?fpoId=${fpoId}`)
       .then(r => r.json())
       .then(data => {
-        if (data.success && data.mandis.length > 0) {
-          const livePrices = data.mandis
-            .slice(0, 10)
-            .map((m: Record<string, unknown>) =>
-              `${(m.name as string).split(' ')[0]} Mandi — Wheat ₹${(m.modal_price as number) || 0}/q`
-            )
-          setPrices([...livePrices, ...DEFAULT_PAYOUTS])
+        if (data.success && data.payouts.length > 0) {
+          setItems(data.payouts.map(fmtPayout))
+          return
         }
+        // Fall back to mandi price ticker
+        return fetch('/api/mandis?crop=Wheat')
+          .then(r => r.json())
+          .then(mData => {
+            if (mData.success && mData.mandis.length > 0) {
+              setItems(mData.mandis.slice(0, 10).map((m: Record<string, unknown>) =>
+                `${String(m.name).split(' ')[0]} Mandi — Wheat ₹${m.modal_price ?? 0}/q`
+              ))
+            }
+          })
       })
       .catch(() => {})
   }, [])
 
-  const tickerItems = [...prices, ...prices]
-  const totalWidth = prices.length * 340
+  const tickerItems = [...items, ...items]
+  const totalWidth  = items.length * 340
 
   return (
     <div className="glass rounded-xl border border-emerald-500/10 overflow-hidden">

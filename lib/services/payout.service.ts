@@ -12,8 +12,8 @@ import { PAGINATION_DEFAULTS } from '../constants'
 
 export async function listPayouts(
   fpo_id: string,
-  page = PAGINATION_DEFAULTS.PAGE,
-  limit = PAGINATION_DEFAULTS.LIMIT
+  page: number = PAGINATION_DEFAULTS.PAGE,
+  limit: number = PAGINATION_DEFAULTS.LIMIT
 ): Promise<PaginatedResponse<Payout>> {
   const offset = (page - 1) * limit
   const { rows, total } = await getPayoutsByFPO(fpo_id, limit, offset)

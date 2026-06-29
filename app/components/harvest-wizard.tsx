@@ -2,7 +2,7 @@
 
 import { useState, useReducer } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, ArrowLeft, Camera, CheckCircle2, Loader2, Wheat, Home, AlertCircle, ClipboardList } from 'lucide-react'
+import { ArrowRight, ArrowLeft, CheckCircle2, Loader2, Wheat, AlertCircle, ClipboardList } from 'lucide-react'
 import Link from 'next/link'
 
 type FormState = {
@@ -326,10 +326,6 @@ export function HarvestWizard() {
                   </div>
                 </div>
 
-                <button className="w-full py-4 rounded-lg border-2 border-dashed border-white/20 hover:border-white/40 text-white flex items-center justify-center gap-2 transition-colors">
-                  <Camera className="w-5 h-5" />
-                  Take Photo (optional)
-                </button>
               </motion.div>
             )}
 

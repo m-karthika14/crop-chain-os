@@ -51,7 +51,8 @@ function LoginForm() {
           localStorage.setItem('managerName', data.user.name || '')
           router.push('/dashboard')
         } else {
-          localStorage.setItem('farmerName', data.user.full_name || '')
+          localStorage.setItem('farmerName',  data.user.full_name || '')
+          localStorage.setItem('farmerState', data.user.state || '')
           router.push('/farmer-dashboard')
         }
       } else {
@@ -197,22 +198,6 @@ function LoginForm() {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 text-gray-500 hover:text-gray-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-white/20 accent-emerald-500"
-                />
-                Remember me
-              </label>
-              <Link
-                href="#"
-                className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
-              >
-                Forgot password?
-              </Link>
-            </div>
 
             {/* Submit Button */}
             <motion.button

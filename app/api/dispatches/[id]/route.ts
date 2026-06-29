@@ -7,9 +7,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const db = await getDb()
 
     const result = await db.query(
-      `SELECT d.*, m.name as mandi_name, m.state as mandi_state, m.lat, m.lng
+      `SELECT d.*,
+              COALESCE(m.name,  d.mandi_id) as mandi_name,
+              COALESCE(m.state, '')         as mandi_state,
+              m.lat, m.lng
        FROM dispatches d
-       JOIN mandis m ON m.id = d.mandi_id
+       LEFT JOIN mandis m ON m.id = d.mandi_id
        WHERE d.id = $1`,
       [id]
     )

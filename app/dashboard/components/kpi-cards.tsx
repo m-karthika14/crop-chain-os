@@ -49,14 +49,14 @@ function KpiCard({
 
   const changeColor = {
     positive: 'text-emerald-400',
-    neutral: 'text-gray-400',
-    warning: 'text-amber-400',
+    neutral:  'text-gray-400',
+    warning:  'text-amber-400',
   }[changeType]
 
   const badgeColor = {
     positive: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    neutral: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-    warning: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    neutral:  'bg-gray-500/10 text-gray-400 border-gray-500/20',
+    warning:  'bg-amber-500/10 text-amber-400 border-amber-500/20',
   }[changeType]
 
   return (
@@ -66,17 +66,13 @@ function KpiCard({
       transition={{ duration: 0.5, delay }}
       className="relative glass rounded-xl p-5 border border-emerald-500/10 glass-hover overflow-hidden group"
     >
-      {/* Vine decoration */}
       <div className="pointer-events-none">
         <VineDecoration />
       </div>
-
-      {/* Subtle corner glow */}
       <div className="absolute top-0 right-0 w-24 h-24 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
         style={{ background: 'radial-gradient(circle at top right, rgba(16,185,129,0.08), transparent 70%)' }}
         aria-hidden="true"
       />
-
       <div className="flex items-start justify-between mb-3">
         <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
           <Icon className="w-4 h-4 text-emerald-400" />
@@ -87,7 +83,6 @@ function KpiCard({
           </span>
         )}
       </div>
-
       <p className="text-xs text-gray-500 mb-1">{label}</p>
       <p className="text-2xl font-bold text-white tracking-tight">
         {prefix}{count.toLocaleString('en-IN')}{suffix}
@@ -97,9 +92,25 @@ function KpiCard({
   )
 }
 
+interface Stats {
+  farmer_count:          number
+  active_harvest_qty:    number
+  revenue_month_lakhs:   number
+  pending_payouts_lakhs: number
+  pending_farmers:       number
+  mandi_count:           number
+}
+
+interface CreditData {
+  score: number
+  label: string
+}
+
 export function KpiCards() {
   const ref = useRef<HTMLDivElement>(null)
   const [started, setStarted] = useState(false)
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [credit, setCredit] = useState<CreditData | null>(null)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -110,61 +121,76 @@ export function KpiCards() {
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+    Promise.all([
+      fetch(`/api/stats/fpo?fpoId=${fpoId}`).then(r => r.json()),
+      fetch(`/api/credit-score?fpoId=${fpoId}`).then(r => r.json()),
+    ]).then(([sData, cData]) => {
+      if (sData.success) setStats(sData as Stats)
+      if (cData.success) setCredit({ score: cData.score, label: cData.label })
+    }).catch(() => {})
+  }, [])
+
   const kpis = [
     {
       icon: Users,
       label: 'Total Farmers',
-      value: 825,
-      change: '+12 joined this week',
+      value: stats?.farmer_count ?? 0,
+      change: stats ? `${stats.farmer_count} registered farmers` : 'Loading...',
       changeType: 'positive' as const,
       delay: 0,
     },
     {
       icon: Wheat,
       label: 'Active Harvest',
-      value: 850,
+      value: stats?.active_harvest_qty ?? 0,
       suffix: ' Q',
-      change: 'Kharif season ongoing',
+      change: 'Pending dispatch',
       changeType: 'neutral' as const,
       delay: 0.08,
     },
     {
       icon: IndianRupee,
       label: 'Revenue This Month',
-      value: 180,
+      value: stats?.revenue_month_lakhs ?? 0,
       prefix: '₹',
       suffix: 'L',
-      change: '+8.3% vs last month',
+      change: stats ? `₹${stats.revenue_month_lakhs}L settled this month` : 'Loading...',
       changeType: 'positive' as const,
       delay: 0.16,
     },
     {
       icon: Star,
       label: 'FPO Credit Score',
-      value: 842,
+      value: credit?.score ?? 0,
       suffix: '/900',
-      change: 'Up 6 pts from last month',
+      change: credit ? `${credit.label} — computed from live data` : 'Loading...',
       changeType: 'positive' as const,
-      badge: 'Excellent',
+      badge: credit?.label,
       delay: 0.24,
     },
     {
       icon: MapPin,
       label: 'Active Mandis',
-      value: 1473,
-      change: '23 states covered',
+      value: stats?.mandi_count ?? 0,
+      change: 'Pan-India network',
       changeType: 'neutral' as const,
       delay: 0.32,
     },
     {
       icon: Clock,
       label: 'Pending Payouts',
-      value: 42,
+      value: stats?.pending_payouts_lakhs ?? 0,
       prefix: '₹',
       suffix: 'L',
-      change: '18 farmers awaiting',
-      changeType: 'warning' as const,
-      badge: 'Pending',
+      change: stats
+        ? stats.pending_farmers > 0
+          ? `${stats.pending_farmers} farmers awaiting payment`
+          : 'All payouts settled ✅'
+        : 'Loading...',
+      changeType: (stats?.pending_payouts_lakhs ?? 0) > 0 ? 'warning' as const : 'positive' as const,
+      badge: (stats?.pending_payouts_lakhs ?? 0) > 0 ? 'Pending' : undefined,
       delay: 0.40,
     },
   ]

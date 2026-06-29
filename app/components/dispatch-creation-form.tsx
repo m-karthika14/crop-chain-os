@@ -84,18 +84,14 @@ export function DispatchCreationForm({ mandi, quantity, crop, farmers, onSuccess
           setNotificationProgress(Math.min(progress, 100))
         }, 150)
       } else {
-        const id = `DP-${Date.now().toString().slice(-6)}`
-        setDispatchId(id)
         setLoading(false)
-        setStep('success')
-        onSuccess?.(id)
+        setStep('form')
+        alert(`Failed to create dispatch: ${data.error || 'Unknown error'}`)
       }
-    } catch {
-      const id = `DP-${Date.now().toString().slice(-6)}`
-      setDispatchId(id)
+    } catch (err) {
       setLoading(false)
-      setStep('success')
-      onSuccess?.(id)
+      setStep('form')
+      alert(`Network error: ${String(err)}`)
     }
   }
 

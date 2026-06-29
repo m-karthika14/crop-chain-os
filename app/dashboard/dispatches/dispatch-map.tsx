@@ -2,6 +2,17 @@
 
 import { useEffect, useRef } from 'react'
 
+// Inject Leaflet CSS once — without this, tiles stack in the top-left corner
+function ensureLeafletCSS() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('leaflet-css-dispatch')) return
+  const link = document.createElement('link')
+  link.id   = 'leaflet-css-dispatch'
+  link.rel  = 'stylesheet'
+  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+  document.head.appendChild(link)
+}
+
 const DEFAULT_ROUTE: Array<{ pos: [number, number]; label: string; stage: number }> = [
   { pos: [12.97, 77.59], label: 'FPO Origin', stage: 0 },
   { pos: [14.46, 78.82], label: 'Andhra Pradesh', stage: 1 },
@@ -42,14 +53,16 @@ export default function DispatchMap({ truckIndex: rawTruckIndex, startPos, endPo
   const truckIndex = Number.isFinite(rawTruckIndex)
     ? Math.max(0, Math.min(rawTruckIndex, ROUTE.length - 1))
     : 0
-  const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<import('leaflet').Map | null>(null)
-  const truckMarkerRef = useRef<import('leaflet').Marker | null>(null)
-  const completedLineRef = useRef<import('leaflet').Polyline | null>(null)
-  const remainingLineRef = useRef<import('leaflet').Polyline | null>(null)
+  const containerRef    = useRef<HTMLDivElement>(null)
+  const mapRef          = useRef<import('leaflet').Map | null>(null)
+  const truckMarkerRef  = useRef<import('leaflet').Marker | null>(null)
+  const completedLineRef= useRef<import('leaflet').Polyline | null>(null)
+  const remainingLineRef= useRef<import('leaflet').Polyline | null>(null)
+  const sizeTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // initialise map once on mount
   useEffect(() => {
+    ensureLeafletCSS()
     if (!containerRef.current || mapRef.current) return
     let mounted = true
 
@@ -122,9 +135,24 @@ export default function DispatchMap({ truckIndex: rawTruckIndex, startPos, endPo
       truckMarkerRef.current = truckMarker
 
       mapRef.current = map
+
+      // Force Leaflet to recalculate container size after CSS loads
+      sizeTimerRef.current = setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize()
+      }, 100)
     })
 
-    return () => { mounted = false }
+    return () => {
+      mounted = false
+      if (sizeTimerRef.current) clearTimeout(sizeTimerRef.current)
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+        truckMarkerRef.current    = null
+        completedLineRef.current  = null
+        remainingLineRef.current  = null
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

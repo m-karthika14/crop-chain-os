@@ -36,14 +36,38 @@ const WHY = [
   { text: '23% lower payment risk', positive: true },
 ]
 
+interface HarvestRow {
+  farmer_id: string
+  crop_type: string
+  quantity_final: string
+  quantity_actual: string
+  quantity_estimated: string
+}
+
+function computeCropData(harvests: HarvestRow[], cropName: string) {
+  const filtered = harvests.filter(
+    h => (h.crop_type || '').toLowerCase() === cropName.toLowerCase()
+  )
+  const totalQty = filtered.reduce((s, h) => {
+    const q = parseFloat(h.quantity_final || h.quantity_actual || h.quantity_estimated || '0')
+    return s + q
+  }, 0)
+  const farmers = new Set(filtered.map(h => h.farmer_id)).size
+  return { qty: Math.round(totalQty), farmers }
+}
+
 export default function OptimizerPage() {
   const router = useRouter()
   const [crop, setCrop] = useState('Wheat')
-  const [qty, setQty] = useState('850')
+  const [qty, setQty] = useState('')
   const [location, setLocation] = useState('Loading...')
+  const [farmerCount, setFarmerCount] = useState(0)
+  const [allHarvests, setAllHarvests] = useState<HarvestRow[]>([])
 
+  // On mount: fetch location + all harvests
   useEffect(() => {
     const fpoId = localStorage.getItem('fpoId') || 'fpo-001'
+
     fetch(`/api/fpos/location?fpoId=${fpoId}`)
       .then(r => r.json())
       .then(data => {
@@ -51,7 +75,23 @@ export default function OptimizerPage() {
         else setLocation('Karnal, Haryana')
       })
       .catch(() => setLocation('Karnal, Haryana'))
+
+    fetch(`/api/harvests?fpoId=${fpoId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.harvests)) {
+          setAllHarvests(data.harvests as HarvestRow[])
+        }
+      })
+      .catch(() => {})
   }, [])
+
+  // Recompute quantity + farmer count whenever crop or harvest data changes
+  useEffect(() => {
+    const { qty: realQty, farmers } = computeCropData(allHarvests, crop)
+    setQty(realQty > 0 ? String(realQty) : '')
+    setFarmerCount(farmers)
+  }, [crop, allHarvests])
   const [cropOpen, setCropOpen] = useState(false)
   const [phase, setPhase] = useState<'idle' | 'loading' | 'results'>('idle')
   const [progress, setProgress] = useState(0)
@@ -182,7 +222,7 @@ export default function OptimizerPage() {
               value={qty}
               onChange={e => setQty(e.target.value.replace(/\D/g, ''))}
               className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 hover:border-emerald-500/30 focus:border-emerald-500/50 focus:outline-none text-sm text-white placeholder-gray-600 transition-all duration-200"
-              placeholder="850"
+              placeholder="Loading from harvests..."
             />
           </div>
 
@@ -524,7 +564,7 @@ export default function OptimizerPage() {
                 mandi={selectedMandiData}
                 quantity={qty}
                 crop={crop}
-                farmers={825}
+                farmers={farmerCount}
                 onSuccess={(dispatchId) => {
                   setDispatchCreated(true)
                   setTimeout(() => {
@@ -552,7 +592,7 @@ export default function OptimizerPage() {
               <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-white text-sm">Dispatch Created Successfully</p>
-                <p className="text-xs text-gray-400 mt-1">All 825 farmers have been notified</p>
+                <p className="text-xs text-gray-400 mt-1">All {farmerCount} farmers have been notified</p>
                 <Link
                   href="/dashboard/dispatches"
                   className="text-xs text-emerald-400 hover:text-emerald-300 font-medium mt-2 inline-block"

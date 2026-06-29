@@ -25,7 +25,11 @@ interface FPOListItem {
   manager_name: string
 }
 
-export function FPOOnboarding() {
+interface FPOOnboardingProps {
+  onComplete?: () => void
+}
+
+export function FPOOnboarding(_props: FPOOnboardingProps) {
   const [status, setStatus] = useState<FPOStatus>('NO_FPO')
   const [fpoCode, setFpoCode] = useState('')
   const [fpoDetails, setFpoDetails] = useState<FPODetails | null>(null)

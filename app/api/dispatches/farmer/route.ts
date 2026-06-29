@@ -27,15 +27,16 @@ export async function GET(req: NextRequest) {
         d.departed_at, d.eta, d.arrived_at, d.sold_at,
         d.price_per_quintal, d.actual_revenue, d.truck_number,
         d.expected_revenue,
-        m.name as mandi_name, m.state as mandi_state,
+        COALESCE(m.name,  d.mandi_id) as mandi_name,
+        COALESCE(m.state, '')         as mandi_state,
         m.lat as mandi_lat, m.lng as mandi_lng,
         h.quantity_final as farmer_quantity,
         p.net_amount as farmer_payout,
         p.payment_status as payout_status,
         p.paid_at
       FROM dispatches d
-      JOIN mandis m ON m.id = d.mandi_id
-      JOIN harvests h ON h.fpo_id = d.fpo_id AND h.farmer_id = $1 AND h.crop_type = d.crop
+      LEFT JOIN mandis m ON m.id = d.mandi_id
+      JOIN harvests h ON h.fpo_id = d.fpo_id AND h.farmer_id = $1 AND LOWER(h.crop_type) = LOWER(d.crop)
       LEFT JOIN payouts p ON p.dispatch_id = d.id AND p.farmer_id = $1
       WHERE d.current_stage > 0
       ORDER BY d.created_at DESC

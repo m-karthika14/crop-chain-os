@@ -8,8 +8,8 @@ import { PAGINATION_DEFAULTS } from '../constants'
 
 export async function listLedgerEntries(
   fpo_id: string,
-  page = PAGINATION_DEFAULTS.PAGE,
-  limit = PAGINATION_DEFAULTS.LIMIT
+  page: number = PAGINATION_DEFAULTS.PAGE,
+  limit: number = PAGINATION_DEFAULTS.LIMIT
 ): Promise<PaginatedResponse<LedgerEntry>> {
   const offset = (page - 1) * limit
   const { rows, total } = await getLedgerEntries(fpo_id, limit, offset)
