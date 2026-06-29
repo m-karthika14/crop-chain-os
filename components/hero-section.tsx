@@ -65,7 +65,7 @@ export function HeroSection() {
           transition={{ duration: 0.7, delay: 0.35 }}
           className="text-lg sm:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto mb-4 leading-relaxed text-pretty"
         >
-          {"India's First Financial OS built for"}
+          {"India's Financial OS built for"}
           <span className="text-white font-semibold"> 35,000+ registered FPOs</span>
           {" ("}
           <span className="text-emerald-400 font-semibold">10,000+ government-supported</span>
